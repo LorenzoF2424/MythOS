@@ -26,50 +26,51 @@ enum vga_color {
 	VGA_COLOR_WHITE = 15,
 };
 
+static inline uint8_t vga_entry_color(enum vga_color fg, enum vga_color bg) 
+{
+	return fg | bg << 4;
+}
+
+typedef struct {
+    char c;
+    uint8_t color;
+}VGAslot;
+
+VGAslot terminal_history[100][80];
+
+
 uint32_t cursorAt(uint32_t x,uint32_t y) { // converts x to column and y to row based on numbers from 0x0 to 80x25
 
     uint8_t r=0;
-    if (x>=80) {
-
-        
+    if (x>=VGA_WIDTH) {
         r=x%80;
         y+=x/80;
         x=r;
     }
-    if (y>=25) {
+    if (y>=VGA_HEIGHT) y=y%25;
 
-        y=y%25;
-
-    }
-    return VGA_MEMORY+(((y*80)+x)*2);
-
-    
-
+    return VGA_MEMORY+(((y*VGA_WIDTH)+x)*2);
 }
 
-void putcVGA(char c,uintptr_t location,uint8_t color) {   
+void putcVGAat(const char c,uintptr_t location,uint8_t color) {   
     *(volatile char*)(location)=c; 
     *(volatile char*)(location+1)=color; 
-    
 }
 
 void cls() {
 
-    for (uint8_t i=0;i<25;i++) {
-        for (uint8_t j=0;j<80;j++) {
-            putcVGA(0,cursorAt(j,i),15);
+    for (uint8_t i=0;i<VGA_HEIGHT;i++) 
+        for (uint8_t j=0;j<VGA_WIDTH;j++) 
+            putcVGAat(0,cursorAt(j,i),15);
 
-        }
-
-    }
 }
 
 
 
-void printfVGA32(const char *str, uintptr_t location, uint8_t color) {
+void printfVGA32at(const char *str, uintptr_t location, uint8_t color) {
 
-    for (uint32_t i=0;i<strlen(str);i++){
-        putcVGA(str[i],location+(i*2),color);
+    for (size_t i=0;i<strlen(str);i++){
+        putcVGAat(str[i],location+(i*2),color);
     
    }
 

@@ -1,7 +1,7 @@
 ENTRY(main)
 SECTIONS
 {
-    . = 0x1000; /* Dici al linker che il codice parte da qui */
+    . = 0x8400;  /* Kernel sempre a 0x8400 */
     .text : { *(.text) }
     .data : { *(.data) }
     .bss  : { *(.bss) }

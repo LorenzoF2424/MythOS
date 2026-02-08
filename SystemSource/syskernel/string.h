@@ -3,18 +3,18 @@
 #include <stdint.h>
 
 
-uint32_t strlen(const char *str) {
+size_t strlen(const char *str) {
     
-    uint32_t cont=0;
-    while (str[cont]!='\0') {cont++;}
-    return cont;
+    size_t len=0;
+    while (str[len]) len++;
+    return len;
 }
 
 
 void strcpy(char *dest, char *src) {
 
 
-    for (uint32_t i=0;i<strlen(src);i++)
+    for (size_t i=0;i<strlen(src);i++)
         dest[i]=src[i];
 
 }
