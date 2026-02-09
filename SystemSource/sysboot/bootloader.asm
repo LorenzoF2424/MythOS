@@ -80,7 +80,7 @@ bootmain:
 
     ;also load a lot more sectors for the kernel and everything else
 
-    loadSectors 0x8400,5,3
+    loadSectors 0x8400,5,22
 
     call check_disk_operation_success
 
@@ -194,7 +194,7 @@ msgHD db "HD", 13, 10, 0
 msgISO db "ISO", 13, 10, 0
 msg2 db "Loading other sectors for more memory:", 13, 10, 0
 cfE db "cf = true, Disk Read FAILURE!!", 13, 10, 0
-alF db "al INCORRECT, one or more sectors didn't get read!!", 13, 10, 0
+alF db "al INCORRECT, not all sectors got read!!", 13, 10, 0
 
 align 4
 dap_packet:
@@ -274,103 +274,9 @@ IDT_Descriptor:
 ;||                             32 BIT                                  ||
 ;=========================================================================
 [BITS 32]
-;macro section for protected mode
-%macro loadAt 2
-    push edx
-    mov dl,%1
-    mov dh,%2
-    call loadAtPos
-    pop edx
-%endmacro
-%macro print32At 4
-    push edx 
-    push ecx
-    
-    push esi
-    mov dl,%2
-    mov dh,%3
-    mov cl,%4
-    mov esi,%1
-    call printf32
-    pop esi
-    pop ecx
-    pop edx
-%endmacro
-%macro putc32 2
-    mov al,%1
-    mov cl,%2
-    call putcf32
-%endmacro
-%macro print32 2
-    push edx 
-    push ecx
-    push esi
-   
-    mov dh,25
-    mov cl,%2
-    mov esi,%1
-    call printf32
-    pop esi
-    pop ecx
-    pop edx
-%endmacro
 
-%macro printNum32At 4
-    push edx 
-    push ecx
-    push esi
-   
-    mov esi,%1
-    mov dl,%2
-    mov dh,%3
-    mov cl,%4
-    call printNumf32
-    pop esi
-    pop ecx
-    pop edx
-%endmacro
-%macro printNum32 2
-    push edx 
-    push ecx
-    push esi                
-    mov dh,25
-    mov cl,%2
-    mov esi, %1
-    call printNumf32
-    pop esi
-    pop ecx
-    pop edx
-%endmacro
-%macro setIDTGate 2
-    push eax
-    push ebx
-    mov ebx,%1
-    mov eax,%2
-    call setIDTGatef
-    pop ebx
-    pop eax
-%endmacro
+%include "SystemSource/sysboot/protectedUtils.asm"
 
-;end macro section
-
-debugString db "Protected Mode Working!!", 0
-Number dd 0
-CPUIDflag db 1
-checkCPUIDstr db "CPUID STATUS: ", 0
-Av db "AVAILABLE", 0
-notAv db "NOT AVAILABLE", 0
-checkLongMode db "Long Mode:    ",0
-
-
-
-
-
-kernel_entry equ 0x8400
-
-
-
-
-; protected mode code starts here
 protected_mode:
 
     mov ax, DATA_SEG     ; 0x10
@@ -413,345 +319,69 @@ protected_mode:
     ;xor edx, edx
     ;div edx        ; /0
 
-    ;check CPUID Availability
+    ; check CPUID Availability
 
     call checkCPUIDAv
 
-    ;mov bl,[CPUIDflag]
-    ;printNum32At ebx,20,20,0x0F
+    ; mov bl,[CPUIDflag]
+    ; printNum32At ebx,20,20,0x0F
 
-    ;check long mode Availability
-    ;call yes
-    call check_long_mode
+    ; check long mode Availability
+    ; call yes
+    call checkLongMode
     
-    push eax
-    push ecx
-    push edi
-    ;call setupPagingTables
-    pop edi
-    pop ecx
-    pop eax
+    ; setup the addresses that will contain the paging tables
+    call setupPagingTables
+   
+    ; switch to 32x Long Mode compatibility
+    call switchToLongMode
 
-    ;jmp kernel_entry ; jmp to kernel
+
+    ;Load the 64-bit GDT
+    lgdt [GDT64.Pointer]
+
+    ; Perform the Far Jump to the 64-bit Code Segment
+    ; 0x08 is the offset of the Code Descriptor in GDT64
+    jmp 0x08:long_mode
   
 
-  ;call load_Long_Mode
 JMP $
+;==============================END 32BIT CODE==============================
 
 
 
 
+[BITS 64]
 
+%include "SystemSource/sysboot/longUtils.asm"
 
-loadAtPos: ;convert dl in column and dh in row(l*h)
-    push ebx
-    push eax
-    push ecx
+kernel_entry equ 0x8400
+long_mode:
 
-    mov ebx,0xB8000
-    mov eax,80
-    mul dh
-    add al, dl
-    SHL eax,1
-    add ebx,eax
-    mov edi,ebx
+    ; Load 64-bit Data Segment into segment registers
+    ; 0x10 is the offset of the Data Descriptor in GDT64
+    mov ax, 0x10
+    mov ds, ax
+    mov es, ax
+    mov fs, ax
+    mov gs, ax
+    mov ss, ax
 
-    pop ecx
-    pop eax
-    pop ebx
-ret
+    ; --- 64-BIT TEST ---
+    ; Let's write "OK" in Green on Black at the top-right corner
+    ; using 64-bit registers (RAX and RDI)
+    mov rax, 0x0A4B0A4F          ; 0x0A = Green, 'O' = 0x4F, 'K' = 0x4B
+    mov rdi, 0xB8000 + 156       ; Video memory address for top-right
+    mov [rdi], rax               ; Write 4 bytes (O, attr, K, attr) at once
 
-putcf32:
+    ; From here, the CPU is running in full 64-bit Long Mode.
+    hlt                          ; Halt the CPU
 
-    mov byte [edi], al 
-    mov byte [edi+1], cl
 
-    add edi,2
 
-ret
 
-yes:
-    putc32 '[',0x0F
-    putc32 251,0x0F
-    putc32 ']',0x0F
-ret
+    ;jmp kernel_entry ; jmp to kernel
 
-printf32:
-    push eax
-
-    cmp dh,25
-    jge .skipLoad
-    loadAt dl,dh
-    .skipLoad:
-
-    .printLoop:
-
-        lodsb
-        or al,al
-        jz .finished
-
-        
-       call putcf32
-
-    jmp .printLoop
-    .finished:
-    pop eax
-ret
-
-printNumf32:
-        push eax
-        push ebx
-         
-        cmp dh,25
-        jge .skipLoad
-        loadAt dl,dh
-        .skipLoad:
-        
-        mov eax,esi
-        cmp eax, 10
-        jge .notMultipleDigits
-
-        ;asdad
-        add eax,'0'    ; '0' = 48 ???? vscode syntax bug
-        call putcf32
-        jmp .finished
-
-        .notMultipleDigits:
-        
-            mov ebx,10
-            xor ch,ch
-        .getNum:
-
-            
-
-            xor edx,edx
-            div ebx
-
-           
-
-            add dl,48
-            push dx
-            inc ch
-
-            or eax,eax
-            jz .printLoop
-            
-            
-        jmp .getNum
-            
-        .printLoop:
-
-            or ch,ch
-            jz .finished
-            
-            pop dx
-            mov byte [edi], dl 
-            mov byte [edi+1], cl
-
-            add edi,2
-
-            dec ch
-            
-            
-        jmp .printLoop
-
-    .finished:
-
-        
-        pop ebx
-        pop eax
-ret
-
-
-
-setIDTGatef:
-    
-    push edi
-
-
-    ;calculate address in physical ram
-    mov edi, ebx
-    shl edi,3
-    add edi,IDT_ADDRESS                   
-    
-
-    mov word [edi], ax              ; Low Offset
-    mov word [edi + 2], CODE_SEG    ; Selector
-    mov byte [edi + 4], 0           ; Reserved
-    mov byte [edi + 5], 10001110b   ; Flags
-    shr eax, 16
-    mov word [edi + 6], ax          ; Offset alto
-    pop edi
-
-
-
-ret
-
-
-msgException db "KERNEL EXCEPTION DETECTED: "
-msgExDiv0 db "Division by Zero", 0
-msgExGPF db "General Protection Fault", 0
-msgExUE db "Unknown Exception", 0
-
-exception_handler:
-    push esi
-
-    print32At msgException, 0,24, 0x4F
-    
-    ; eax contains the exception number
-    cmp eax,0
-    je .isDiv0
-    cmp eax,13
-    je .isGPF
-    
-    
-    ; default message
-    mov esi,msgExUE
-    jmp .printEnd
-    
-.isDiv0:
-    mov esi,msgExDiv0
-    jmp .printEnd
-.isGPF:
-    mov esi,msgExGPF
-
-.printEnd:
-    print32 esi,0x4F
-
-    pop esi                         
-iretd                   
-       
-
-; it may be preferrable to put this in a separate file to be included,
-; along with any other EFLAGS bits you may want to use
-EFLAGS_ID equ 1 << 21           ; if this bit can be flipped, the CPUID
-                                ; instruction is available
-
-; Checks if CPUID is supported by attempting to flip the ID bit (bit 21) in
-; the EFLAGS register. If we can flip it, CPUID is available.
-; returns eax = 1 if there is cpuid support; 0 otherwise
-checkCPUIDAv:
-    pushfd
-    pop eax
-
-    ; The original value should be saved for comparison and restoration later
-    mov ecx, eax
-    xor eax, EFLAGS_ID
-
-    ; storing the eflags and then retrieving it again will show whether or not
-    ; the bit could successfully be flipped
-    push eax                    ; save to eflags
-    popfd
-    pushfd                      ; restore from eflags
-    pop eax
-
-    ; Restore EFLAGS to its original value
-    push ecx
-    popfd
-
-    ; if the bit in eax was successfully flipped (eax != ecx), CPUID is supported.
-    print32At checkCPUIDstr,45,8,0x0F
-
-    xor eax, ecx
-    jnz .supported
-    .notSupported:
-        print32 notAv,0x0F
-        mov byte [CPUIDflag],0
-    ret
-    .supported:
-        print32 Av,0x0F
-
-    putc32 '(',0x0F
-    mov bl,[CPUIDflag]
-    printNum32 ebx,0x0F
-    putc32 ')',0x0F
-
-ret
-
-PML4_ADDR equ 0x10000   ; 64 KB
-PDPT_ADDR equ 0x11000   ; 68 KB
-PD_ADDR   equ 0x12000   ; 72 KB
-PT_ADDR   equ 0x13000   ; 76 KB
-
-setupPagingTables:
-    mov edi, PML4_ADDR   
-    xor eax, eax
-    mov ecx, 4096      
-    rep stosd
-
-    mov edi, PML4_ADDR
-    mov eax, 0x11003   
-    mov [edi], eax
-
-    mov edi, PDPT_ADDR
-    mov eax, 0x12003   
-    mov [edi], eax
-
-    mov edi, PD_ADDR
-    mov eax, 0x13003   
-    mov [edi], eax
-
-    mov edi, PT_ADDR
-    mov eax, 0x00000003 
-    mov ecx, 512
-
-    .loop_pt:
-        mov [edi], eax
-        add eax, 0x1000
-        add edi, 8          
-    loop .loop_pt
-
-ret
-
-
-check_long_mode:
-
-    print32At checkLongMode,45,9,0x0F
-
-    mov eax, 0x80000000
-    cpuid
-    cmp eax, 0x80000001
-    jb .no_long_mode
-
- 
-    mov eax, 0x80000001
-    cpuid
-    test edx, 1 << 29      ; Test bit 29
-    jz .no_long_mode
-    
-    mov eax, 1             
-
-    print32 Av,0x0F
-
-
-ret
-
-.no_long_mode:
-    xor eax, eax           
-    print32 notAv,0x0F
-
-ret
-
-
-switch_long_mode:
-
-    mov eax, cr0
-    and eax,0x7FFFFFFF
-    mov cr0,eax
-    mov eax, cr4
-    or eax,0x620
-    mov cr4,eax
-    mov eax, dword[ebp+0x4]
-    mov cr3, eax
-    mov ecx, 0xC0000080
-    rdmsr
-    or eax,0x101
-    wrmsr
-    mov eax,cr0
-    or eax,0xE00000E
-    mov cr0,eax
-    ;jmp 0x08:long_mode
-ret
 
 
 
