@@ -375,12 +375,12 @@ long_mode:
     mov [rdi], rax               ; Write 4 bytes (O, attr, K, attr) at once
 
     ; From here, the CPU is running in full 64-bit Long Mode.
-    hlt                          ; Halt the CPU
+    ;hlt                          ; Halt the CPU
 
 
 
 
-    ;jmp kernel_entry ; jmp to kernel
+    jmp kernel_entry ; jmp to kernel
 
 
 
