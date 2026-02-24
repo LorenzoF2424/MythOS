@@ -1,0 +1,16 @@
+{
+  "disk": "MythicOS.img",
+  "config": "bootbootstuff/bootboot.config",
+  "initrd": {
+    "type": "file",
+    "file": "tempfiles/initrd.tar"
+  },
+  "partitions": [
+    {
+      "type": "boot",
+      "size": "32M",
+      "bin": "bootbootstuff/bootboot.bin",
+      "efi": "bootbootstuff/bootx64.efi"
+    }
+  ]
+}

@@ -1,0 +1,4 @@
+[ZoneTransfer]
+ZoneId=3
+ReferrerUrl=https://gitlab.com/bztsrc/bootboot
+HostUrl=https://gitlab.com/bztsrc/bootboot/raw/master/dist/bootboot.efi
