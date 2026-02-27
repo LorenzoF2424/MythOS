@@ -6,6 +6,13 @@
 #include <stdint.h>
 
 
+void strinit(char *str, size_t size) {
+
+    for (size_t i=0; i<size-1;i++)
+        str[i]='\0';
+
+}
+
 size_t strlen(const char *str) {
     
     size_t len=0;
@@ -37,10 +44,7 @@ int32_t strcmp(const char* s1, const char* s2) {
         s1++;
         s2++;
     }
-    // Restituisce la differenza tra i primi due caratteri diversi incontrati
-    // Se sono uguali, la differenza sarà 0.
-    // Se s1 è minore, il risultato sarà negativo.
-    // Se s1 è maggiore, il risultato sarà positivo.
+
     return *(unsigned char*)s1 - *(unsigned char*)s2;
 }
 
@@ -58,7 +62,6 @@ char* strtok(char* str, const char delimiter) {
 
     char* token_start = last_pos;
 
-    // Cerchiamo il delimitatore
     while (*last_pos != '\0') {
         if (*last_pos == delimiter) {
             *last_pos = '\0'; 
@@ -68,9 +71,88 @@ char* strtok(char* str, const char delimiter) {
         last_pos++;
     }
 
-    // Se arriviamo qui, abbiamo trovato l'ultimo pezzo della stringa
     last_pos = NULL; 
     return token_start;
 }
+
+
+inline int atoi(const char *str) {
+    int res = 0;
+    int8_t sign = 1;
+    size_t i = 0;
+
+    while (str[i] == ' ' || str[i] == '\t' || str[i] == '\n' || str[i] == '\r') {
+        i++;
+    }
+
+    if (str[i] == '-' || str[i] == '+') {
+        if (str[i] == '-') {
+            sign = -1;
+        }
+        i++;
+    }
+
+    
+    while (str[i] >= '0' && str[i] <= '9') {
+        res = res * 10 + (str[i] - '0');
+        i++;
+    }
+
+    return sign * res;
+}
+
+inline uint32_t htoi(const char *str) {
+    uint32_t res = 0;
+    int i = 0;
+
+    while (str[i] == ' ' || str[i] == '\t') {
+        i++;
+    }
+
+    if (str[i] == '0' && (str[i+1] == 'x' || str[i+1] == 'X')) {
+        i += 2;
+    }
+
+    while (str[i] != '\0') {
+        uint8_t val = 0;
+
+        if (str[i] >= '0' && str[i] <= '9') {
+            val = str[i] - '0';
+        } else if (str[i] >= 'A' && str[i] <= 'F') {
+            val = str[i] - 'A' + 10; 
+        } else if (str[i] >= 'a' && str[i] <= 'f') {
+            val = str[i] - 'a' + 10; 
+        } else {
+            break; 
+        }
+
+        
+        res = (res << 4) | val;
+        i++;
+    }
+
+    return res;
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 #endif

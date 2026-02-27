@@ -10,7 +10,6 @@ uint8_t cmos_read(uint8_t reg) {
     return inb(0x71);
 }
 
-// Funzione per calcolare la RAM totale usando i registri CMOS
 uint32_t get_total_memory_mb() {
     
     uint8_t low_byte = cmos_read(0x34);
@@ -57,7 +56,6 @@ const char kbd_US[128] = {
     0,    0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0
 };
 
-// Array per i caratteri quando lo SHIFT è premuto
 const char kbd_US_shift[128] = {
     0,  27, '!', '@', '#', '$', '%', '^', '&', '*', '(', ')', '_', '+', '\b',   
   '\t', 'Q', 'W', 'E', 'R', 'T', 'Y', 'U', 'I', 'O', 'P', '{', '}', '\n',   

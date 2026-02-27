@@ -1,0 +1,8 @@
+{
+  "config": "$WORKDIR/bootbootstuff/bootbootISO.config",
+  "initrd": { "type": "tar", "directory": "$WORKDIR/tempfiles/initrd_build" },
+  "iso9660": true,
+  "partitions": [
+    { "type": "boot", "size": 16 }
+  ]
+}

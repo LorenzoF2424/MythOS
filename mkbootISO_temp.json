@@ -1,0 +1,8 @@
+{
+  "config": "/home/lorenzo/OSDev/Mythic/bootbootstuff/bootbootISO.config",
+  "initrd": { "type": "tar", "directory": "/home/lorenzo/OSDev/Mythic/tempfiles/initrd_build" },
+  "iso9660": true,
+  "partitions": [
+    { "type": "boot", "size": 16 }
+  ]
+}

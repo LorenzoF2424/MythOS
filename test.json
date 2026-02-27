@@ -1,0 +1,5 @@
+{
+  "kernel": "sys/core",
+  "initrd": "tempfiles/initrd.tar",
+  "iso": "MythicOS.iso"
+}

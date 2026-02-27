@@ -4,6 +4,8 @@ global idt_flush
 global outb
 global inb
 
+extern draw_cursor
+
 ;args order: RDI,RSI
 idt_flush:
     lidt [rdi]
@@ -39,9 +41,10 @@ keyboard_isr:
     push r10
     push r11
 
-    ; 2. Chiama la nostra bellissima funzione in C++
-    call keyboard_handler_c
 
+    mov byte [draw_cursor], 0
+    call keyboard_handler_c
+    mov byte [draw_cursor], 1
     
     pop r11
     pop r10
