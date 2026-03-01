@@ -52,6 +52,23 @@ void print_hex64(uint64_t num) {
     while (--i >= 0) terminal_putchar(buffer[i]);
 }
 
+void print_ptr(uint64_t ptr) {
+    terminal_write("0x");
+    char buffer[16];
+    const char* hex_chars = "0123456789ABCDEF";
+
+    // Riempiamo il buffer partendo dalla fine per avere sempre 16 cifre
+    for (int i = 15; i >= 0; i--) {
+        buffer[i] = hex_chars[ptr & 0xF];
+        ptr >>= 4;
+    }
+
+    // Stampiamo tutto il buffer
+    for (int i = 0; i < 16; i++) {
+        terminal_putchar(buffer[i]);
+    }
+}
+
 // ----------------- kprintf -----------------
 void kprintf(const char* format, ...) {
     va_list args;
@@ -61,6 +78,7 @@ void kprintf(const char* format, ...) {
         if (format[i] == '%') {
             i++;
             switch (format[i]) {
+                case 'p': { uint64_t ptr = (uint64_t)va_arg(args, void*); print_ptr((uint64_t)ptr); break; }
                 case 'd': { int num = va_arg(args,int); print_int(num); break; }
                 case 'x': { uint32_t num = va_arg(args,uint32_t); print_hex32(num); break; }
                 case 's': { const char* str = va_arg(args,const char*); terminal_write(str); break; }

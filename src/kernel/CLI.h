@@ -3,6 +3,9 @@
 #include "gnu_utils/string.h"
 #include "terminal_driver/kprintf.h"
 #include "idt/IDT.h"
+#include "memory_manager/pmm.h"
+#include "memory_manager/vmm.h"
+#include "memory_manager/kheap.h"
 #define SECOND 100000000
 inline uint64_t ticks = 0; 
 

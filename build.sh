@@ -2,7 +2,7 @@
 set -e
 
 # Variables
-SOURCE="./SystemSource/kernel"
+SOURCE="./src/kernel"
 TEMP="./tempfiles"
 export PATH="/home/lorenzo/OSDev/cross-compiler/cross-gcc/bin:$PATH"
 OSFILENAME="MythicOS" 
