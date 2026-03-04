@@ -12,7 +12,7 @@ bbP="./bootbootstuff"
 ASSEMBLE="nasm -f elf64"
 CXX="x86_64-elf-g++"
 LD="x86_64-elf-ld"
-CXXFLAGS="-std=c++17 -ffreestanding -mcmodel=large -mno-red-zone -fstack-protector-all -fno-exceptions -fno-rtti -c"
+CXXFLAGS="-std=c++17 -I src/kernel -ffreestanding -mcmodel=large -mno-red-zone -fstack-protector-all -fno-exceptions -fno-rtti -c"
 LDFLAGS="-m elf_x86_64 -T linker.ld -nostdlib -z max-page-size=0x1000 -static -o"
 
 COMPILE="$CXX $CXXFLAGS"
@@ -36,7 +36,7 @@ for cpp_file in $(find "$SOURCE" -name "*.cpp"); do
     
     obj_file="$TEMP/${filename}.o"
     
-    echo "   -> Compiling $filename..."
+    echo "   -> $filename.cpp"
     $COMPILE "$cpp_file" -o "$obj_file"
     
     OBJ_FILES="$OBJ_FILES $obj_file"

@@ -27,6 +27,33 @@ void print_long(long num) {
     while (--i >= 0) terminal_putchar(buffer[i]);
 }
 
+void print_float(double num) {
+    // Gestione dei numeri negativi
+    if (num < 0) {
+        terminal_putchar('-');
+        num = -num;
+    }
+
+    // Estrai e stampa la parte intera riutilizzando print_long
+    long int_part = (long)num;
+    print_long(int_part);
+
+    // Stampa la virgola
+    terminal_putchar('.');
+
+    // Calcola la parte decimale (es. 3.1415 - 3 = 0.1415)
+    double frac_part = num - (double)int_part;
+
+    // Estrai le cifre decimali una ad una (Precisione a 4 cifre)
+    int precision = 4;
+    for (int i = 0; i < precision; i++) {
+        frac_part *= 10;
+        long digit = (long)frac_part;
+        terminal_putchar('0' + digit); // Stampa il singolo numero
+        frac_part -= digit;            // Rimuovi la cifra appena stampata
+    }
+}
+
 // ----------------- hexadecimals Numbers -----------------
 void print_hex32(uint32_t num) {
     terminal_write("0x");
@@ -83,6 +110,8 @@ void kprintf(const char* format, ...) {
                 case 'x': { uint32_t num = va_arg(args,uint32_t); print_hex32(num); break; }
                 case 's': { const char* str = va_arg(args,const char*); terminal_write(str); break; }
                 case 'c': { char c = (char)va_arg(args,int); terminal_putchar(c); break; }
+
+                case 'f': { double num = va_arg(args, double); print_float(num); break; }
                 case 'l': { // long o long hex
                     i++;
                     switch(format[i]) {

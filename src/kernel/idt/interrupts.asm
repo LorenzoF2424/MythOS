@@ -4,7 +4,6 @@ global idt_flush
 global outb
 global inb
 
-extern draw_cursor
 
 ;args order: RDI,RSI
 idt_flush:
@@ -42,9 +41,7 @@ keyboard_isr:
     push r11
 
 
-    mov byte [draw_cursor], 0
     call keyboard_handler_c
-    mov byte [draw_cursor], 1
     
     pop r11
     pop r10
@@ -58,4 +55,35 @@ keyboard_isr:
     pop rax
 
     
+iretq
+
+
+global timer_isr
+extern timer_handler_c  
+
+timer_isr:
+    push rax
+    push rbx
+    push rcx
+    push rdx
+    push rsi
+    push rdi
+    push r8
+    push r9
+    push r10
+    push r11
+
+    call timer_handler_c
+    
+    pop r11
+    pop r10
+    pop r9
+    pop r8
+    pop rdi
+    pop rsi
+    pop rdx
+    pop rcx
+    pop rbx
+    pop rax
+
 iretq

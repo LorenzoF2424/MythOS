@@ -1,24 +1,31 @@
-#include "CLI.h"
+#include "cli/CLI.h"
 uint8_t system_stack[65536];
 extern uint8_t initstack[];
 
 
+void enable_fpu() {
+    uint64_t cr0, cr4;
 
+    // 1. Leggiamo il registro CR0
+    asm volatile ("mov %%cr0, %0" : "=r"(cr0));
+    cr0 &= ~(1 << 2); // Resetta il bit EM (Emulation) - dice alla CPU di usare l'hardware vero
+    cr0 |= (1 << 1);  // Setta il bit MP (Monitor co-processor)
+    asm volatile ("mov %0, %%cr0" :: "r"(cr0));
 
-void init_all_except_memory_stuff() {
+    // 2. Leggiamo il registro CR4 per attivare le istruzioni SSE
+    asm volatile ("mov %%cr4, %0" : "=r"(cr4));
+    cr4 |= (1 << 9);  // OSFXSR: Attiva il salvataggio dei registri FXSAVE/FXRSTOR
+    cr4 |= (1 << 10); // OSXMMEXCPT: Attiva le eccezioni hardware per i float
+    asm volatile ("mov %0, %%cr4" :: "r"(cr4));
 
-    init_display();
-    init_keyboard();
-
-
-    terminal_write_welcome_message();
-    sysCommandAt("check ram", 42, 0);
-    sysCommandAt("check stack", 42, 1);
-    sysCommandAt("check cpu", 42, 2);
-    sysCommandAt("check cs", 80, 0);
+    // 3. Inizializza lo stato dell'FPU
+    asm volatile ("fninit");
 }
 
+
 void setup_memory() {
+
+    
     init_pmm();
 
     init_vmm();
@@ -27,60 +34,40 @@ void setup_memory() {
     vmm_copy_higher_half(kernel_pml4);
 
    
-    vmm_map_range(kernel_pml4, 0, 0, 256 * 1024 * 1024, PAGE_PRESENT | PAGE_RW);
+    vmm_map_range(kernel_pml4, 0, 0, (get_total_memory_mb() + 16ULL) * 1024ULL * 1024ULL, PAGE_PRESENT | PAGE_RW);
 
     vmm_switch_pml4(kernel_pml4);
 
     init_kheap();
 }
 
+void init_all() {
+
+    init_display();
+    terminal_write_welcome_message();
+    setup_memory();
+    //sysCommandAt("check ram", 80, 0);
+    sysCommandAt("check stack", 42, 1);
+    sysCommandAt("check cpu", 42, 2);
+    sysCommandAt("check cs", 42, 0);
+
+    
+    init_keyboard();
+    init_timer(1000);
+    enable_fpu();
+}
+
+
 void test() {
-   kprintf("--- Starting Final Memory Integration Test ---\n");
-
-    // 1. Test Dynamic Allocation (KHeap + PMM)
-    void* ptr1 = malloc(64);
-    void* ptr2 = malloc(64);
-    
-    kprintf("Test 1 - Allocation: ptr1=%p, ptr2=%p\n", ptr1, ptr2);
-    
-    if (ptr1 && ptr2 && ptr1 != ptr2) {
-        kprintf("Test 1 - SUCCESS: Slab is slicing pages correctly.\n");
-    } else {
-        kprintf("Test 1 - FAILED: Allocation error!\n");
-    }
-
-    // 2. Test Virtual Mapping (VMM)
-    // Proviamo a scrivere e leggere in uno dei puntatori
-    // Se il VMM non fosse mappato correttamente (Identity mapping), qui avremmo un Page Fault
-    uint64_t* check = (uint64_t*)ptr1;
-    *check = 0xDEADC0DECAFEBABE;
-    
-    if (*check == 0xDEADC0DECAFEBABE) {
-        kprintf("Test 2 - SUCCESS: Virtual memory writing works at %p\n", ptr1);
-    } else {
-        kprintf("Test 2 - FAILED: Memory corruption!\n");
-    }
-
-    // 3. Test Reuse (Free + Malloc)
-    free(ptr1);
-    void* ptr3 = malloc(64);
-    kprintf("Test 3 - Reuse: freed ptr1=%p, new ptr3=%p\n", ptr1, ptr3);
-
-    if (ptr1 == ptr3) {
-        kprintf("Test 3 - SUCCESS: Memory recycled correctly.\n");
-    } else {
-        kprintf("Test 3 - WARNING: Memory was not recycled, but it might be okay.\n");
-    }
-
-    kprintf("--- All Systems Nominal: Kernel is ready! ---\n");
+  
 }
 
 extern "C" void main() { 
 
     __asm__ __volatile__ ("mov %0, %%rsp" : : "r"(system_stack + 65536));
-    init_all_except_memory_stuff();
-    setup_memory();
- 
+    init_all();
+    
+    
 
     test();
 
@@ -97,6 +84,6 @@ extern "C" void main() {
 
 
 
-
-    ticks++;}
+        __asm__ __volatile__ ("hlt");
+    }
 }
