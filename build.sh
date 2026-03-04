@@ -2,7 +2,7 @@
 set -e
 
 # Variables
-SOURCE="./src/kernel"
+SOURCE="./src"
 TEMP="./tempfiles"
 export PATH="/home/lorenzo/OSDev/cross-compiler/cross-gcc/bin:$PATH"
 OSFILENAME="MythicOS" 
@@ -12,7 +12,7 @@ bbP="./bootbootstuff"
 ASSEMBLE="nasm -f elf64"
 CXX="x86_64-elf-g++"
 LD="x86_64-elf-ld"
-CXXFLAGS="-std=c++17 -I src/kernel -ffreestanding -mcmodel=large -mno-red-zone -fstack-protector-all -fno-exceptions -fno-rtti -c"
+CXXFLAGS="-std=c++17 -I include -ffreestanding -mcmodel=large -mno-red-zone -fstack-protector-all -fno-exceptions -fno-rtti -c"
 LDFLAGS="-m elf_x86_64 -T linker.ld -nostdlib -z max-page-size=0x1000 -static -o"
 
 COMPILE="$CXX $CXXFLAGS"
