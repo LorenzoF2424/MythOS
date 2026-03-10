@@ -33,7 +33,7 @@ void setup_memory() {
 
     vmm_copy_higher_half(kernel_pml4);
 
-   
+    
     vmm_map_range(kernel_pml4, 0, 0, (get_total_memory_mb() + 16ULL) * 1024ULL * 1024ULL, PAGE_PRESENT | PAGE_RW);
 
     vmm_switch_pml4(kernel_pml4);
@@ -44,9 +44,10 @@ void setup_memory() {
 void init_all() {
 
     init_display();
+    init_idt();
     terminal_write_welcome_message();
+    init_exceptions();
     setup_memory();
-    //sysCommandAt("check ram", 80, 0);
     sysCommandAt("check stack", 42, 1);
     sysCommandAt("check cpu", 42, 2);
     sysCommandAt("check cs", 42, 0);

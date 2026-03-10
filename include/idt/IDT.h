@@ -4,10 +4,10 @@
 
 
 #include "idt/defines.h"
+#include "idt/exceptions/handler.h"
 
-
-#include "../cli/cmd/commands.h"
-#include "../mem/pmm.h"
+#include "cli/cmd/commands.h"
+#include "mem/pmm.h"
 
 
 

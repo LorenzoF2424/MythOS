@@ -12,7 +12,7 @@ int8_t history_index=0;
 
 void init_keyboard() {
     remap_pic();
-    init_idt(); 
+     
     uint16_t cs;
     asm volatile ("mov %%cs, %0" : "=r"(cs));
     idt_set_gate(32, (uint64_t)timer_isr, cs, 0x8E);
