@@ -4,7 +4,7 @@ set -e
 # Variables
 SOURCE="./src"
 TEMP="./tempfiles"
-export PATH="/home/lorenzo/OSDev/cross-compiler/cross-gcc/bin:$PATH"
+export PATH="$HOME/OSDev/cross-compiler/cross-gcc/bin:$PATH"
 OSFILENAME="MythicOS" 
 bbP="./bootbootstuff"
 
@@ -19,12 +19,23 @@ COMPILE="$CXX $CXXFLAGS"
 LINK="$LD $LDFLAGS"
 
 echo "==================================================================="
-echo "Building $OSFILENAME with BOOTBOOT..."
+echo "Building $OSFILENAME..."
 echo "==================================================================="
 echo ""
 
 echo "1) Assembling Interrupts..."
-$ASSEMBLE "$SOURCE/idt/interrupts.asm" -o "$TEMP/interrupts.o"
+OBJ_FILES=""
+for asm_file in $(find "$SOURCE" -name "*.asm"); do
+    
+    filename=$(basename "$asm_file" .cpp)
+    
+    obj_file="$TEMP/${filename}.o"
+    
+    echo "   -> $filename"
+    $ASSEMBLE "$asm_file" -o "$obj_file"
+    
+    OBJ_FILES="$OBJ_FILES $obj_file"
+done        
 echo "-------------------------------------------------------------------"
 
 echo "2) Compiling C++ kernel..."

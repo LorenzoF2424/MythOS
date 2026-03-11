@@ -110,13 +110,13 @@ int8_t cmd_color(const char c[MAX_COMMAND_ARGS][MAX_COMMAND_LEN]) {
         uint32_t bg = htoi(c[2]);
         uint32_t fg = htoi(c[3]);
         change_terminal_color(fg, bg);
-        terminal_clear(); 
+        //terminal_clear(); 
         return true;
     }
     uint8_t attr = (uint8_t)htoi(c[1]);
     if (attr > 0 && attr < 255) {
         change_terminal_color(vga_palette[attr & 0x0F], vga_palette[(attr >> 4) & 0x0F]);
-        terminal_clear(); 
+        //terminal_clear(); 
         return true;
     }
     return 2;
