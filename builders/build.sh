@@ -27,8 +27,8 @@ echo "Building $OSFILENAME..."
 echo "==================================================================="
 echo ""
 
-echo "HOME = $HOME"
-echo "REAL_USER = $REAL_USER"
+echo "OSDev = $OSDev"
+echo "Myth = $Myth"
 echo ""
 
 echo "1) Assembling Interrupts..."

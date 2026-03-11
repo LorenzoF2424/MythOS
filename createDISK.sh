@@ -4,7 +4,7 @@ set -e
 
 # Variables
 TEMP="./tempfiles"
-OSFILENAME="MythicOS"
+OSFILENAME="MythOS"
 RAM="256M"
 
 
