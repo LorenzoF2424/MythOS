@@ -6,9 +6,10 @@ set -e
 TEMP="./tempfiles"
 OSFILENAME="MythicOS"
 WORKDIR=$(pwd)
+RAM="256M"
 
 
-./build.sh
+sudo ./builders/build.sh
 
 echo "4) Preparazione initrd..."
 rm -rf "$TEMP/initrd_build"
@@ -42,4 +43,4 @@ echo "==================================================================="
 echo "Starting $OSFILENAME on QEMU..."
 echo "==================================================================="
 
-qemu-system-x86_64 -bios /usr/share/ovmf/OVMF.fd -cdrom MythicOS.iso -m 256M -vga std 2>/dev/null
+qemu-system-x86_64 -bios /usr/share/ovmf/OVMF.fd -cdrom MythicOS.iso -m $RAM 2>/dev/null
