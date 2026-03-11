@@ -3,7 +3,7 @@ set -e
 
 # Variables
 OSDev=$(realpath "$(dirname "$0")/../..")
-Myth="$OSDev/Mythic"
+Myth="$OSDev/MythOS"
 export PATH="$OSDev/cross-compiler/cross-gcc/bin:$PATH"
 SOURCE="$Myth/src"
 TEMP="$Myth/tempfiles"

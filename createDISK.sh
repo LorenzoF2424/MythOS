@@ -23,7 +23,7 @@ cd $TEMP/initrd
 tar -cvf ../initrd.tar sys
 cd ../..
 
-./bootbootstuff/mkboot ./bootbootstuff/mkbootDISK.json MythicOS.img
+./bootbootstuff/mkboot ./bootbootstuff/mkbootDISK.json $OSFILENAME.img
 
 echo "CREATION SUCCESSFUL!!!!"
 echo "-------------------------------------------------------------------"
@@ -36,5 +36,5 @@ echo "==================================================================="
 echo "Starting $OSFILENAME on QEMU..."
 echo "==================================================================="
 
-qemu-system-x86_64 -drive format=raw,file=MythicOS.img -m $RAM 2>/dev/null
+qemu-system-x86_64 -drive format=raw,file=$OSFILENAME.img -m $RAM 2>/dev/null
 

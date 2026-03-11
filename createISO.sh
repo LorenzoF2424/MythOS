@@ -4,7 +4,7 @@ set -e
 
 # Variables
 TEMP="./tempfiles"
-OSFILENAME="MythicOS"
+OSFILENAME="MythOS"
 WORKDIR=$(pwd)
 RAM="256M"
 
@@ -17,7 +17,7 @@ mkdir -p "$TEMP/initrd_build/sys"
 cp "$TEMP/kernel64.bin" "$TEMP/initrd_build/sys/core"
 echo "-------------------------------------------------------------------"
 
-echo "5) Generazione ISO con mkbootimg..."
+echo "5) Generating ISO with mkbootimg..."
 cat > "$WORKDIR/mkbootISO_temp.json" << EOF
 {
   "config": "$WORKDIR/bootbootstuff/bootbootISO.config",
@@ -29,7 +29,7 @@ cat > "$WORKDIR/mkbootISO_temp.json" << EOF
 }
 EOF
 
-"$WORKDIR/bootbootstuff/mkboot" "$WORKDIR/mkbootISO_temp.json" "$WORKDIR/MythicOS.iso"
+"$WORKDIR/bootbootstuff/mkboot" "$WORKDIR/mkbootISO_temp.json" "$WORKDIR/$OSFILENAME.iso"
 
 echo "CREATION SUCCESSFUL!!!!"
 echo "-------------------------------------------------------------------"
@@ -43,4 +43,4 @@ echo "==================================================================="
 echo "Starting $OSFILENAME on QEMU..."
 echo "==================================================================="
 
-qemu-system-x86_64 -bios /usr/share/ovmf/OVMF.fd -cdrom MythicOS.iso -m $RAM 2>/dev/null
+qemu-system-x86_64 -bios /usr/share/ovmf/OVMF.fd -cdrom $OSFILENAME.iso -m $RAM 2>/dev/null
