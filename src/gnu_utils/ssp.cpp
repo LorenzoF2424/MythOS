@@ -12,11 +12,10 @@ extern void kprintf(const char* str, ...);
 #endif
 extern "C" {
 
-    // 1. La variabile globale segreta (usata dal prologo delle funzioni)
     __attribute__((used))
     uintptr_t __stack_chk_guard = STACK_CHK_GUARD;
 
-    // 2. Il gestore di fallimento (usato dall'epilogo delle funzioni)
+    
     __attribute__((noreturn, used))
     void __stack_chk_fail(void) {
         

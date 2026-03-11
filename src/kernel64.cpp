@@ -39,6 +39,7 @@ void setup_memory() {
     vmm_switch_pml4(kernel_pml4);
 
     init_kheap();
+   
 }
 
 void init_all() {
