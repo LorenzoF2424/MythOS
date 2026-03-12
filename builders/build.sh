@@ -35,11 +35,11 @@ echo "1) Assembling Interrupts..."
 OBJ_FILES=""
 for asm_file in $(find "$SOURCE" -name "*.asm"); do
     
-    filename=$(basename "$asm_file" .cpp)
+    filename=$(basename "$asm_file" .asm)
     
     obj_file="$TEMP/${filename}.o"
     
-    echo "   -> $filename"
+    echo "   -> $filename.asm"
     $ASSEMBLE "$asm_file" -o "$obj_file"
     
     OBJ_FILES="$OBJ_FILES $obj_file"

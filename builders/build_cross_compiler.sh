@@ -12,7 +12,8 @@ sudo apt-get update -y
 sudo apt-get install -y build-essential bison flex libgmp3-dev libmpc-dev libmpfr-dev texinfo wget
 
 # --- Configuration ---
-export PREFIX="$HOME/OSDev/cross-compiler/cross-gcc"
+OSDev=$(realpath "$(dirname "$0")/../..")
+export PREFIX="$OSDev/cross-compiler/cross-gcc"
 export TARGET="x86_64-elf"
 export PATH="$PREFIX/bin:$PATH"
 
@@ -21,7 +22,7 @@ BINUTILS_VERSION="2.42"
 GCC_VERSION="13.2.0"
 
 # Working directory
-WORKDIR="$HOME/OSDev/cross-compiler/src"
+WORKDIR="$OSDev/cross-compiler/src"
 mkdir -p "$WORKDIR"
 mkdir -p "$PREFIX"
 
