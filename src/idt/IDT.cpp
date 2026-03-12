@@ -40,22 +40,27 @@ void init_idt() {
 
 void remap_pic() {
     
+
+    // wake up PICs and set new offsets
     outb(PIC1_COMMAND, 0x11);
     outb(PIC2_COMMAND, 0x11);
 
-    
+    // Set new offsets: PIC1 -> 0x20 (32), PIC2 -> 0x28 (40)
     outb(PIC1_DATA, 0x20); 
     outb(PIC2_DATA, 0x28); 
 
+
+    // Tell PIC1 that there is a slave PIC at IRQ2 (0000 0100)
     outb(PIC1_DATA, 0x04);
     outb(PIC2_DATA, 0x02);
 
+    // Set PICs to 8086 mode
     outb(PIC1_DATA, 0x01);
     outb(PIC2_DATA, 0x01);
 
-  
-    outb(PIC1_DATA, 0xFD); 
-    outb(PIC2_DATA, 0xFF);
+    // set masks: unmask only IRQ0 (timer) and IRQ1 (keyboard)
+    outb(PIC1_DATA, 0b1111'1100); 
+    outb(PIC2_DATA, 0b1111'1111);
 }
 
 

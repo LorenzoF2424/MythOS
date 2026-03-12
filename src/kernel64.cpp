@@ -75,17 +75,21 @@ extern "C" void main() {
 
 
 
-    kprintf("MythicOS>");
+    kprintf("MythOS>");
     terminal_set_input_limit();
 
     
     while (true) {
+
+
+        current_tick = ticks;
         cli_main();    
-    
+        previous_tick = current_tick;
+
         
 
 
 
-        __asm__ __volatile__ ("hlt");
+        //__asm__ __volatile__ ("hlt");
     }
 }

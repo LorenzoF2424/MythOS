@@ -159,4 +159,6 @@ void process_keyboard_events() {
             continue;
         }
     }
+
+    draw_cursor=true;
 }

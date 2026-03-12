@@ -136,11 +136,11 @@ int8_t cmd_beep(const char c[MAX_COMMAND_ARGS][MAX_COMMAND_LEN]) {
 
 command_t commands[] = {
     {"clear",   cmd_clear,   "Clears the screen"},
-    {"echo",    cmd_echo,    "Prints text to screen"},
-    {"check",   cmd_check,   "Checks ram, cs, stack, or cpu"},
-    {"cursor",  cmd_cursor,  "Changes cursor shape"},
-    {"color",   cmd_color,   "Changes terminal color"},
-    {"beep",    cmd_beep,    "sound"},
+    {"echo",    cmd_echo,    "Prints text to screen\n Usage: echo [text]"},
+    {"check",   cmd_check,   "Checks ram, cs, stack, or cpu\n \tUsage: check [ram/cs/stack/cpu] [av/us/all] [b]"},
+    {"cursor",  cmd_cursor,  "Changes cursor shape\n Usage: cursor [0-2]"},
+    {"color",   cmd_color,   "Changes terminal color\n Usage: color [attr] or color rgb [bg] [fg]\n\tattr: 0x0F (hex) where lower nibble is fg and higher nibble is bg\n\tbg/fg: 0xRRGGBB (hex)"},
+    {"beep",    cmd_beep,    "sound\n Usage: beep"},
 
 
 

@@ -8,7 +8,7 @@ void prepare_for_next_command() {
     input_pos=0;
 
 
-    kprintf("MythicOS>");        
+    kprintf("MythOS>");        
     terminal_set_input_limit();  
 }
 

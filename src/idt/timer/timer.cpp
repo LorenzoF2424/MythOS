@@ -1,6 +1,8 @@
 #include "idt/timer/timer.h"
 
-uint64_t ticks = 0; 
+uint64_t ticks = 0;
+uint64_t previous_tick = 0; 
+uint64_t current_tick = 0; 
 
 void init_timer(uint32_t frequency) {
     
@@ -17,4 +19,11 @@ void init_timer(uint32_t frequency) {
 extern "C" void timer_handler_c() {
     ticks++; 
     outb(0x20, 0x20); 
+}
+
+
+
+bool every(uint64_t ms) {      
+    
+    return (previous_tick / ms) < (current_tick / ms);
 }
