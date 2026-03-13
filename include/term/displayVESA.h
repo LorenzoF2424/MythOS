@@ -17,6 +17,10 @@ extern uint32_t* framebuffer;
 extern uint16_t MAX_COLUMNS;
 extern uint16_t MAX_ROWS;
 
+struct vga_color_t {
+    uint32_t fg;
+    uint32_t bg;
+};
 extern const uint32_t vga_palette[16];
 
 void init_display();

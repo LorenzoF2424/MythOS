@@ -1,7 +1,7 @@
 #ifndef TIMER_H
 #define TIMER_H
 
-#include "idt/defines.h" 
+#include "idt/IDT.h" 
 #include "cmos/io.h"
 #include <stdbool.h>
 #include <stddef.h>

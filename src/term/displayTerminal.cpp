@@ -1,10 +1,12 @@
 #include "term/displayTerminal.h"
 
+
 terminal_info_t terminal_data = {
-    .color_fg = 0xFFFFFF,
-    .color_bg = 0x000000,
-    .cursor_col = 0,
-    .cursor_row = 0,
+    .color ={
+        .fg = 0xFFFFFF,
+        .bg = 0x000000
+    },
+    .cursor = point(0,0),
     .limit_col = 0,
     .limit_row = 0,
     .max_columns = 0,
@@ -16,42 +18,42 @@ terminal_info_t terminal_data = {
 
 
 void change_terminal_color(uint32_t fg, uint32_t bg) {
-    terminal_data.color_fg = fg;
-    terminal_data.color_bg = bg;
+    terminal_data.color.fg = fg;
+    terminal_data.color.bg = bg;
 }
 
 void reset_terminal_color() {
-    terminal_data.color_fg = 0xFFFFFF;
-    terminal_data.color_bg = 0x000000;
+    terminal_data.color.fg = 0xFFFFFF;
+    terminal_data.color.bg = 0x000000;
 }
 
+point cursorp;
 bool cursor_visible = false;
 volatile bool draw_cursor=true;
 uint8_t cursor_shape=0;
 void terminal_toggle_cursor_shape() {
-    int start_x = terminal_data.cursor_col * 8;
-    int start_y = terminal_data.cursor_row * 16;
+    
+    point start = point(cursorp.x*8, cursorp.y*16);
 
     switch (cursor_shape) {
 
         case 0:
             for (int y = 12; y < 16; y++) {
-                uint32_t* row_ptr = framebuffer + ((start_y + y) * pitch_pixels);
+                uint32_t* row_ptr = framebuffer + ((start.y + y) * pitch_pixels);
         
                 for (int x = 0; x < 8; x++) {
-                    row_ptr[start_x + x] ^= 0x00FFFFFF; 
+                    row_ptr[start.x + x] ^= 0x00FFFFFF; 
                 }
             }
 
         break;
         case 1:
             for (int y = 0; y < 16; y++) {
-                uint32_t* row_ptr = framebuffer + ((start_y + y) * pitch_pixels);
+                uint32_t* row_ptr = framebuffer + ((start.y + y) * pitch_pixels);
             
-                // Scorriamo tutta la larghezza (da 0 a 7)
                 for (int x = 0; x < 8; x++) {
                     if (y == 0 || y == 15 || x == 0 || x == 7) {
-                        row_ptr[start_x + x] ^= 0x00FFFFFF; 
+                        row_ptr[start.x + x] ^= 0x00FFFFFF; 
                     }
                 }
             }
@@ -59,10 +61,10 @@ void terminal_toggle_cursor_shape() {
         break;
         case 2:
             for (int y = 0; y < 16; y++) {
-                uint32_t* row_ptr = framebuffer + ((start_y + y) * pitch_pixels);
+                uint32_t* row_ptr = framebuffer + ((start.y + y) * pitch_pixels);
         
                 for (int x = 0; x < 8; x++) {
-                    row_ptr[start_x + x] ^= 0x00FFFFFF; 
+                    row_ptr[start.x + x] ^= 0x00FFFFFF; 
                 }
             }
 
@@ -79,16 +81,17 @@ void remove_cursor_shape() {
     }
 }
 
-void draw_char(char c, int x, int y, uint32_t fg, uint32_t bg) {
+void draw_char(char c, point p, vga_color_t color) {
     unsigned char uc = (unsigned char)c;
-    
+    p.x*=8;
+    p.y*=16;
     for (uint8_t row = 0; row < 16; row++) {
         unsigned char bits = font_bitmap[uc][row];
         for (uint8_t col = 0; col < 8; col++) {
             if (bits & (0x80 >> col)) {
-                put_pixel(x + col, y + row, fg);
+                put_pixel(p.x + col, p.y + row, color.fg);
             } else {
-                put_pixel(x + col, y + row, bg);
+                put_pixel(p.x + col, p.y + row, color.bg);
             }
         }
     }
@@ -102,50 +105,47 @@ void terminal_scroll() {
     uint32_t total_pixels = screen_height * pitch_pixels;
     uint32_t pixels_to_copy = total_pixels - text_row_pixels;
 
-    // 1. Sposta tutto lo schermo in alto di una riga
     for (uint32_t i = 0; i < pixels_to_copy; i++) {
         framebuffer[i] = framebuffer[i + text_row_pixels];
     }
 
-    // 2. Pulisci l'ultima riga in basso con il colore di sfondo
     for (uint32_t i = pixels_to_copy; i < total_pixels; i++) {
-        framebuffer[i] = terminal_data.color_bg;
+        framebuffer[i] = terminal_data.color.bg;
     }
 
-    // 3. Riposiziona il cursore
-    terminal_data.cursor_row = MAX_ROWS - 1;
+    terminal_data.cursor.y = MAX_ROWS - 1;
 }
 
 void column_behaviour(terminal_info_t *t) {
-    if (t->cursor_col >= MAX_COLUMNS) {
-        t->cursor_col = 0;
-        t->cursor_row++;
+    if (t->cursor.x >= MAX_COLUMNS) {
+        t->cursor.x = 0;
+        t->cursor.y++;
     }
 }
 
 void row_behaviour(terminal_info_t *t) {
-    if (t->cursor_row >= MAX_ROWS) 
+    if (t->cursor.y >= MAX_ROWS) 
         terminal_scroll(); 
 }
 
 void print_behaviour(terminal_info_t *t) {
-    if (t->cursor_col >= MAX_COLUMNS) {
-        t->cursor_col = 0;
-        t->cursor_row++;
+    if (t->cursor.x >= MAX_COLUMNS) {
+        t->cursor.x = 0;
+        t->cursor.y++;
     }
 
-    if (t->cursor_row >= MAX_ROWS) 
+    if (t->cursor.y >= MAX_ROWS) 
         terminal_scroll(); 
 }
 
-void terminal_set_cursor(terminal_info_t *t, uint16_t x, uint16_t y) {
-    t->cursor_col = x;
-    t->cursor_row = y;
+void terminal_set_cursor(terminal_info_t *t, point p) {
+    t->cursor.x = p.x;
+    t->cursor.y = p.y;
 }
 
 void terminal_set_input_limit() {
-    terminal_data.limit_col = terminal_data.cursor_col;
-    terminal_data.limit_row = terminal_data.cursor_row;
+    terminal_data.limit_col = terminal_data.cursor.x;
+    terminal_data.limit_row = terminal_data.cursor.y;
 }
 
 
@@ -154,30 +154,24 @@ uint16_t input_len=0;
 uint16_t input_pos=0;
 
 void terminal_render_from_buffer(uint16_t start_pos) {
-    // Salviamo la posizione attuale per poterci tornare
-    uint16_t saved_col = terminal_data.cursor_col;
-    uint16_t saved_row = terminal_data.cursor_row;
+    uint16_t saved_col = terminal_data.cursor.x;
+    uint16_t saved_row = terminal_data.cursor.y;
 
-    // Disegniamo il contenuto del buffer da start_pos alla fine
     for (uint16_t i = start_pos; i < input_len; i++) {
-        // Wrapping preventivo
-        if (terminal_data.cursor_col >= MAX_COLUMNS) {
-            terminal_data.cursor_col = 0;
-            terminal_data.cursor_row++;
+        if (terminal_data.cursor.x >= MAX_COLUMNS) {
+            terminal_data.cursor.x = 0;
+            terminal_data.cursor.y++;
         }
-        if (terminal_data.cursor_row >= MAX_ROWS) terminal_scroll();
+        if (terminal_data.cursor.y >= MAX_ROWS) terminal_scroll();
 
-        draw_char(input_buffer[i], terminal_data.cursor_col * 8, 
-                  terminal_data.cursor_row * 16, terminal_data.color_fg, terminal_data.color_bg);
-        terminal_data.cursor_col++;
+        draw_char(input_buffer[i], terminal_data.cursor, terminal_data.color);
+        terminal_data.cursor.x++;
     }
 
-    // PULIZIA: Se abbiamo accorciato la stringa (backspace), cancelliamo l'ultimo carattere vecchio
-    draw_rect(terminal_data.cursor_col * 8, terminal_data.cursor_row * 16, 8, 16, terminal_data.color_bg);
+    draw_rect(terminal_data.cursor.x * 8, terminal_data.cursor.y * 16, 8, 16, terminal_data.color.bg);
 
-    // Ripristiniamo il cursore dove deve stare per l'utente
-    terminal_data.cursor_col = saved_col;
-    terminal_data.cursor_row = saved_row;
+    terminal_data.cursor.x = saved_col;
+    terminal_data.cursor.y = saved_row;
     
 }
 
@@ -190,61 +184,61 @@ inline void terminal_putchar(char c) {
 
     switch (c) {
         case '\b': 
-            if (terminal_data.cursor_col > 0) {
-                terminal_data.cursor_col--;
-            } else if (terminal_data.cursor_row > terminal_data.limit_row) {
-                terminal_data.cursor_row--;
-                terminal_data.cursor_col = MAX_COLUMNS - 1;
+            if (terminal_data.cursor.x > 0) {
+                terminal_data.cursor.x--;
+            } else if (terminal_data.cursor.y > terminal_data.limit_row) {
+                terminal_data.cursor.y--;
+                terminal_data.cursor.x = MAX_COLUMNS - 1;
             } else {
                 return; 
             }
 
-            draw_rect(terminal_data.cursor_col * 8, terminal_data.cursor_row * 16, 8, 16, terminal_data.color_bg);
+            draw_rect(terminal_data.cursor.x * 8, terminal_data.cursor.y * 16, 8, 16, terminal_data.color.bg);
             return;
         break;
 
         case '\t': {
-            uint16_t spaces = terminal_data.tab_size - (terminal_data.cursor_col % terminal_data.tab_size);
-            terminal_data.cursor_col += spaces;
+            uint16_t spaces = terminal_data.tab_size - (terminal_data.cursor.x % terminal_data.tab_size);
+            terminal_data.cursor.x += spaces;
             
             // Controlla se il Tab ti ha fatto uscire dallo schermo
-            if (terminal_data.cursor_col >= MAX_COLUMNS) {
-                terminal_data.cursor_col = 0;
-                terminal_data.cursor_row++;
-                if (terminal_data.cursor_row >= MAX_ROWS) terminal_scroll();
+            if (terminal_data.cursor.x >= MAX_COLUMNS) {
+                terminal_data.cursor.x = 0;
+                terminal_data.cursor.y++;
+                if (terminal_data.cursor.y >= MAX_ROWS) terminal_scroll();
             }
             return;
 
         } break;
 
         case '\n':
-            terminal_data.cursor_col = 0;
-            terminal_data.cursor_row++;
-            if (terminal_data.cursor_row >= MAX_ROWS) terminal_scroll();
+            terminal_data.cursor.x = 0;
+            terminal_data.cursor.y++;
+            if (terminal_data.cursor.y >= MAX_ROWS) terminal_scroll();
             return;
         break;
         default:
-            if (terminal_data.cursor_col >= MAX_COLUMNS) {
-                terminal_data.cursor_col = 0;
-                terminal_data.cursor_row++;
+            if (terminal_data.cursor.x >= MAX_COLUMNS) {
+                terminal_data.cursor.x = 0;
+                terminal_data.cursor.y++;
             }
-            if (terminal_data.cursor_row >= MAX_ROWS) terminal_scroll();
+            if (terminal_data.cursor.y >= MAX_ROWS) terminal_scroll();
 
-            draw_char(c, terminal_data.cursor_col * 8, terminal_data.cursor_row * 16, 
-                      terminal_data.color_fg, terminal_data.color_bg);
-            terminal_data.cursor_col++;
+            draw_char(c, terminal_data.cursor, terminal_data.color);
+            terminal_data.cursor.x++;
         break;
     }
 }
 
 
 
-void terminal_putchar_at(char c, uint16_t x, uint16_t y) {
-    uint16_t tempx = terminal_data.cursor_col;
-    uint16_t tempy = terminal_data.cursor_row;
-    terminal_set_cursor(&terminal_data, x, y);
+void terminal_putchar_at(char c, point p) {
+    point temp;
+    temp.x = terminal_data.cursor.x;
+    temp.y = terminal_data.cursor.y;
+    terminal_set_cursor(&terminal_data, p);
     terminal_putchar(c);
-    terminal_set_cursor(&terminal_data, tempx, tempy);
+    terminal_set_cursor(&terminal_data, temp);
 }
 
 void terminal_write(const char* str) {
@@ -253,18 +247,19 @@ void terminal_write(const char* str) {
     }
 }
 
-void terminal_write_at(const char* str, uint16_t x, uint16_t y) {
+void terminal_write_at(const char* str, point p) {
     for (size_t i = 0; str[i] != '\0'; i++) {
-        terminal_putchar_at(str[i], x++, y);
+        terminal_putchar_at(str[i], p);
+        p.x++;
     }
 }
 
 void terminal_clear() {
     uint32_t total_pixels = screen_height * pitch_pixels;
     for (uint32_t i = 0; i < total_pixels; i++) {
-        framebuffer[i] = terminal_data.color_bg;
+        framebuffer[i] = terminal_data.color.bg;
     }
-    terminal_set_cursor(&terminal_data, 0, 0);
+    terminal_set_cursor(&terminal_data, (point){0, 0});
 }
 
 

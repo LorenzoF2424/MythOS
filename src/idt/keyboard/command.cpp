@@ -1,6 +1,7 @@
 #include "idt/keyboard/command.h"
 #include "mem/pmm.h"
 
+
 void prepare_for_next_command() {
 
     strinit(input_buffer,MAX_INPUT_LEN); 
@@ -57,13 +58,19 @@ void sysCommand(const char *command) {
     pmm_free_blocks(args, 8);
 }
 
-void sysCommandAt(const char *command, uint16_t x, uint16_t y) {
+void sysCommandAt(const char *command, point p) {
 
-    uint16_t tempx = terminal_data.cursor_col;
-    uint16_t tempy = terminal_data.cursor_row;
-    terminal_set_cursor(&terminal_data, x, y);
+    
+    point temp;
+    temp = terminal_data.cursor;
+    cursorp = temp;
+    terminal_data.cursor = p;
+
+    
     sysCommand(command);
-    terminal_set_cursor(&terminal_data, tempx, tempy);
+
+    terminal_data.cursor = temp;
+    draw_cursor=true;
 
 
 }
@@ -86,12 +93,13 @@ void command_handler() {
 
    
     sysCommand(input_buffer);
+    prepare_for_next_command();
 }
 
 void refresh_command_line() {
     
     while (input_pos < input_len) {
-        terminal_data.cursor_col++;
+        terminal_data.cursor.x++;
         column_behaviour(&terminal_data);
         input_pos++;
     }
@@ -114,6 +122,5 @@ void refresh_command_line() {
         input_pos++; 
     }
     
-    // Chiudi correttamente la stringa
     input_buffer[input_len] = '\0'; 
 }

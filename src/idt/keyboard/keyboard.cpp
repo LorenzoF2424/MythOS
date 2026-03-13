@@ -11,13 +11,11 @@ int8_t history_index=0;
 
 
 void init_keyboard() {
-    remap_pic();
+    
      
     uint16_t cs;
     asm volatile ("mov %%cs, %0" : "=r"(cs));
-    idt_set_gate(32, (uint64_t)timer_isr, cs, 0x8E);
     idt_set_gate(33, (uint64_t)keyboard_isr, cs, 0x8E);
-    asm volatile ("sti");
 }
 
 extern "C" void keyboard_handler_c() {
@@ -36,12 +34,13 @@ void handle_character_input(char c) {
         input_len++;
         input_buffer[input_len] = '\0';
 
-        uint16_t old_col = terminal_data.cursor_col;
-        uint16_t old_row = terminal_data.cursor_row;
+        point old;
+        old.x = terminal_data.cursor.x;
+        old.y = terminal_data.cursor.y;
 
         terminal_render_from_buffer(input_pos); 
 
-        terminal_set_cursor(&terminal_data, old_col + 1, old_row);
+        terminal_set_cursor(&terminal_data, point(old.x + 1, old.y));
         column_behaviour(&terminal_data); 
 
         input_pos++;
@@ -50,6 +49,7 @@ void handle_character_input(char c) {
 
 void process_keyboard_events() {
     uint8_t scancode;
+    
     
     while(kbd_pop(&scancode)) {
         
@@ -80,9 +80,9 @@ void process_keyboard_events() {
 
                 case 0x4B: // left arrow
                     if (input_pos > 0) {
-                        remove_cursor_shape();
+                        
                         input_pos--;
-                        terminal_data.cursor_col--;
+                        terminal_data.cursor.x--;
                         column_behaviour(&terminal_data);
                     }
                 break;
@@ -90,7 +90,7 @@ void process_keyboard_events() {
                 case 0x4D: // right arrow
                     if (input_pos < input_len) {
                         input_pos++;
-                        terminal_data.cursor_col++;
+                        terminal_data.cursor.x++;
                         column_behaviour(&terminal_data);
                     }
                 break;
@@ -132,7 +132,6 @@ void process_keyboard_events() {
         if (ascii=='\n') {
             terminal_putchar('\n'); 
             command_handler();
-            prepare_for_next_command();
             continue;
         }
 
@@ -147,14 +146,17 @@ void process_keyboard_events() {
 
                 terminal_putchar('\b'); 
 
-                uint16_t saved_col = terminal_data.cursor_col;
-                uint16_t saved_row = terminal_data.cursor_row;
+                point saved;
+                
+                saved = terminal_data.cursor;
+                
+                
 
                 terminal_render_from_buffer(input_pos); 
 
-                draw_rect(terminal_data.cursor_col * 8, terminal_data.cursor_row * 16, 8, 16, terminal_data.color_bg); 
-                terminal_data.cursor_col = saved_col;
-                terminal_data.cursor_row = saved_row;
+                draw_rect(terminal_data.cursor.x * 8, terminal_data.cursor.y * 16, 8, 16, terminal_data.color.bg); 
+                terminal_data.cursor = saved;
+                
             }
             continue;
         }

@@ -49,14 +49,17 @@ void init_all() {
     terminal_write_welcome_message();
     init_exceptions();
     setup_memory();
-    sysCommandAt("check stack", 42, 1);
-    sysCommandAt("check cpu", 42, 2);
-    sysCommandAt("check cs", 42, 0);
+    sysCommandAt("check stack", point(42, 1));
+    sysCommandAt("check cpu", point(42, 2));
+    sysCommandAt("check cs", point(42, 0));
 
     
     init_keyboard();
     init_timer(1000);
     enable_fpu();
+    init_mouse();
+
+    asm volatile ("sti");
 }
 
 

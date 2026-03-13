@@ -2,6 +2,11 @@
 #include "mem/kheap.h"
 #include "mem/pmm.h"
 #include "idt/sound/sound.h"
+#include "idt/mouse/mouse.h"
+#include "idt/mouse/displayMouse.h"
+
+
+
 
 int8_t cmd_clear(const char c[MAX_COMMAND_ARGS][MAX_COMMAND_LEN]) {
     terminal_clear();
@@ -93,12 +98,27 @@ int8_t cmd_check(const char c[MAX_COMMAND_ARGS][MAX_COMMAND_LEN]) {
         
         return true;
     }
+
+
+    if (strcmp(c[1], "mouse") == 0) {
+        kprintf("=== MOUSE STATUS ===\n");
+        kprintf("Position : X = %d | Y = %d\n", mouse.x, mouse.y);
+        kprintf("Clicks   : Left = %s | Right = %s | Middle = %s\n", 
+                mouse_left_click ? "YES" : "NO", 
+                mouse_right_click ? "YES" : "NO", 
+                mouse_middle_click ? "YES" : "NO");
+        return true;
+    }
+
+
+
+
     return 2;
 }
 
 int8_t cmd_cursor(const char c[MAX_COMMAND_ARGS][MAX_COMMAND_LEN]) {
     uint8_t cs = atoi(c[1]);
-    if (cs >= 0 && cs < 3) {
+    if (cs < 3) {
         cursor_shape = cs;
         return true;
     }
@@ -128,19 +148,47 @@ int8_t cmd_beep(const char c[MAX_COMMAND_ARGS][MAX_COMMAND_LEN]) {
     kprintf("Beep activated! type 'nosound' to stop it.\n");
     return true;
 }
+int8_t cmd_mouse(const char c[MAX_COMMAND_ARGS][MAX_COMMAND_LEN]) {
+    
+    if (strcmp(c[1], "disable") == 0) {
+        mouse_active = false;
+        kprintf("Mouse disabled\n");
+
+        return true;
+    } 
+
+
+    if (strcmp(c[1], "enable") == 0) {
+        mouse_active = true;
+            
+        first_mouse_draw = true; 
+        kprintf("Mouse enabled\n");
+
+
+        return true;
+    } 
+    
+  
+    
+    return 2;
+    
+}
 
 
 
 
+int8_t cmd_help(const char c[MAX_COMMAND_ARGS][MAX_COMMAND_LEN]);
 
 
 command_t commands[] = {
+    {"help",    cmd_help,    "Provides help information for commands\n Usage: help [command]"},
     {"clear",   cmd_clear,   "Clears the screen"},
     {"echo",    cmd_echo,    "Prints text to screen\n Usage: echo [text]"},
     {"check",   cmd_check,   "Checks ram, cs, stack, or cpu\n \tUsage: check [ram/cs/stack/cpu] [av/us/all] [b]"},
     {"cursor",  cmd_cursor,  "Changes cursor shape\n Usage: cursor [0-2]"},
     {"color",   cmd_color,   "Changes terminal color\n Usage: color [attr] or color rgb [bg] [fg]\n\tattr: 0x0F (hex) where lower nibble is fg and higher nibble is bg\n\tbg/fg: 0xRRGGBB (hex)"},
     {"beep",    cmd_beep,    "sound\n Usage: beep"},
+    {"mouse",   cmd_mouse,   "Enables or disables mouse\n Usage: mouse [on/off]"},
 
 
 
@@ -149,15 +197,26 @@ command_t commands[] = {
 };
 
 
+int8_t cmd_help(const char c[MAX_COMMAND_ARGS][MAX_COMMAND_LEN]) {
+    
+    if (c[1][0] == '\0') {
+        kprintf("Provides help information for commands.\n");
+        kprintf("Usage: help [command]\n");
+        kprintf("Command List:\n");
+        size_t num_commands = sizeof(commands) / sizeof(command_t);        
+        for (size_t i=0;i<num_commands;i++)
+        kprintf(" %s\n",commands[i].name);
+        return true;
+    }
+    
+    return true;
+}
+
+
 int8_t execute_command(const char c[MAX_COMMAND_ARGS][MAX_COMMAND_LEN]) {
     size_t num_commands = sizeof(commands) / sizeof(command_t);
     
-    if (strcmp(c[0],"help") == 0) {
-        for (size_t i = 0; i < num_commands; i++) 
-            if (strcmp(c[1], commands[i].name) == 0) 
-                kprintf("%s\n",commands[i].help);
-        return true;
-    }
+  
 
     for (size_t i = 0; i < num_commands; i++) 
         if (strcmp(c[0], commands[i].name) == 0) 
