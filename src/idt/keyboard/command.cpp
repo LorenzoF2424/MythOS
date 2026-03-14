@@ -15,13 +15,7 @@ void prepare_for_next_command() {
 
 
 void sysCommand(const char *command) {
-    if (command == NULL || command[0] == '\0') return;
-
-    //-------------------------------SPECIAL CASES------------------------------------------
-    if (strcmp(command, "reboot") == 0) {
-        kprintf("Restarting...\n");
-        outb(0x64, 0xFE); 
-    }
+    if (command == NULL || command[0] == '\0') return;    
 
 
     //-------------------------------FINDING ARGS------------------------------------------

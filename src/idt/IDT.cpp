@@ -36,15 +36,20 @@ void remap_pic() {
 
 
 void idt_set_gate(uint8_t num, uint64_t base, uint16_t sel, uint8_t flags) {
-
     idt[num].base_low  = (uint16_t)(base & 0xFFFF);
     idt[num].base_mid  = (uint16_t)((base >> 16) & 0xFFFF);
     idt[num].base_high = (uint32_t)((base >> 32) & 0xFFFFFFFF);
     
     idt[num].sel = sel;
-    idt[num].ist = 0;
+    
+    // Se è un Double Fault, usa l'IST 1 (indice 1 nella TSS)
+    if (num == 8) {
+        idt[num].ist = 1; 
+    } else {
+        idt[num].ist = 0;
+    }
+
     idt[num].flags = flags; 
- 
     idt[num].always0 = 0;
 }
 
@@ -52,16 +57,17 @@ void init_idt() {
     idt_ptr.limit = sizeof(struct idt_entry_t) * 256 - 1;
     idt_ptr.base  = (uint64_t)&idt;
 
-   
-    uint8_t *idt_raw = (uint8_t*)&idt;
-    for (size_t i = 0; i < sizeof(struct idt_entry_t) * 256; i++) {
-        idt_raw[i] = 0;
+    for (int i = 0; i < 256; i++) {
+        uint8_t *ptr = (uint8_t*)&idt[i];
+        for (size_t j = 0; j < sizeof(idt_entry_t); j++) ptr[j] = 0;
     }
 
     
-    idt_flush((uint64_t)&idt_ptr);
-    remap_pic();
+   
 
+    idt_flush((uint64_t)&idt_ptr);
+
+    remap_pic();
 }
 
 

@@ -9,7 +9,7 @@ bool mouse_middle_click = false;
 
 uint8_t mouse_cycle = 0;
 int8_t mouse_byte[3];
-bool mouse_active = true; 
+bool mouse_active = false; 
 
 
 void mouse_wait(uint8_t a_type) {

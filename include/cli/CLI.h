@@ -11,7 +11,10 @@
 #include "mem/pmm.h"
 #include "mem/vmm.h"
 #include "mem/kheap.h"
-
+#include "idt/gdt.h"
+#include "idt/IDT.h"
+#include "idt/exceptions/tss.h"
+#include "idt/rtc/rtc.h"
  
 
 extern void cli_main();

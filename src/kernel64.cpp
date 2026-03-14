@@ -36,6 +36,9 @@ void setup_memory() {
     
     vmm_map_range(kernel_pml4, 0, 0, (get_total_memory_mb() + 16ULL) * 1024ULL * 1024ULL, PAGE_PRESENT | PAGE_RW);
 
+    // Avoid NULL pointer triple fault by mapping the first page to itself with no permissions (so it will cause a page fault instead of a triple fault)
+    vmm_map_page(kernel_pml4, 0x0, 0x0, 0);
+
     vmm_switch_pml4(kernel_pml4);
 
     init_kheap();
@@ -45,15 +48,18 @@ void setup_memory() {
 void init_all() {
 
     init_display();
-    init_idt();
     terminal_write_welcome_message();
+
+    init_tss();
+    init_gdt();
+    init_idt();
     init_exceptions();
+
     setup_memory();
     sysCommandAt("check stack", point(42, 1));
     sysCommandAt("check cpu", point(42, 2));
     sysCommandAt("check cs", point(42, 0));
 
-    
     init_keyboard();
     init_timer(1000);
     enable_fpu();

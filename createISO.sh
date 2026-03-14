@@ -8,7 +8,7 @@ OSFILENAME="MythOS"
 WORKDIR=$(pwd)
 RAM="256M"
 
-
+sed -i 's/\r$//' ./builders/build.sh
 sudo ./builders/build.sh
 
 echo "4) Preparazione initrd..."

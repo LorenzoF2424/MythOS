@@ -26,3 +26,4 @@ void sleep(uint64_t ms) {
         __asm__ __volatile__ ("hlt");
     }
 }
+

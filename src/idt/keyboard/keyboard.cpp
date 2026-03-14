@@ -135,30 +135,27 @@ void process_keyboard_events() {
             continue;
         }
 
-        if (ascii=='\b') {
-            if (input_pos > 0) {
-                for (size_t i = input_pos - 1; i < input_len - 1; i++) {
-                    input_buffer[i] = input_buffer[i + 1];
-                }
-                input_len--;
-                input_pos--;
-                input_buffer[input_len] = '\0'; 
-
-                terminal_putchar('\b'); 
-
-                point saved;
-                
-                saved = terminal_data.cursor;
-                
-                
-
-                terminal_render_from_buffer(input_pos); 
-
-                draw_rect(terminal_data.cursor.x * 8, terminal_data.cursor.y * 16, 8, 16, terminal_data.color.bg); 
-                terminal_data.cursor = saved;
-                
+        if (ascii == '\b' && input_pos > 0) {
+            
+            for (size_t i = input_pos - 1; i < input_len - 1; i++) {
+                input_buffer[i] = input_buffer[i + 1];
             }
-            continue;
+            input_len--;
+            input_pos--;
+            input_buffer[input_len] = '\0'; 
+
+            terminal_putchar('\b'); 
+            point saved = terminal_data.cursor;
+                
+            terminal_render_from_buffer(input_pos); 
+
+            int chars_printed = input_len - input_pos;
+            
+            int erase_x = saved.x + chars_printed;
+
+            draw_rect(erase_x * 8, saved.y * 16, 8, 16, terminal_data.color.bg); 
+            
+            terminal_data.cursor = saved;
         }
     }
 

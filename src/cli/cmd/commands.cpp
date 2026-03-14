@@ -4,6 +4,8 @@
 #include "idt/sound/sound.h"
 #include "idt/mouse/mouse.h"
 #include "idt/mouse/displayMouse.h"
+#include "idt/rtc/rtc.h"
+
 
 
 
@@ -174,6 +176,112 @@ int8_t cmd_mouse(const char c[MAX_COMMAND_ARGS][MAX_COMMAND_LEN]) {
     
 }
 
+int8_t cmd_time(const char c[MAX_COMMAND_ARGS][MAX_COMMAND_LEN]) {
+    rtc_time_t t;
+    read_rtc(&t);
+    apply_timezone(&t);
+
+    if (strcmp(c[1], "all") == 0) {
+        kprintf("%02d/%02d/%d - %02d:%02d:%02d\n", 
+                t.day, t.month, t.year, t.hour, t.minute, t.second);
+        return true;
+    }
+
+    if (strcmp(c[1], "date") == 0) {
+        kprintf("%02d/%02d/%d\n", t.day, t.month, t.year);
+        return true;
+    }
+    
+    
+    if (strcmp(c[1], "clock") == 0) {
+        kprintf("%02d:%02d\n", t.hour, t.minute);
+        return true;
+    }
+
+
+    if (strcmp(c[1], "clockex") == 0) {
+        kprintf("%02d:%02d:%02d\n", t.hour, t.minute, t.second);
+        return true;
+    }
+
+    
+
+    if (strcmp(c[1], "day") == 0) {
+        kprintf("%02d\n", t.day);
+        return true;
+    }
+    
+    if (strcmp(c[1], "month") == 0) {
+        kprintf("%02d\n", t.month);
+        return true;
+    }
+    
+    if (strcmp(c[1], "year") == 0) {
+        kprintf("%d\n", t.year);
+        return true;
+    }
+    
+    if (strcmp(c[1], "hour") == 0) {
+        kprintf("%02d\n", t.hour);
+        return true;
+    }
+    
+    if (strcmp(c[1], "minute") == 0) {
+        kprintf("%02d\n", t.minute);
+        return true;
+    }
+    
+    if (strcmp(c[1], "second") == 0) {
+        kprintf("%02d\n", t.second);
+        return true;
+    }
+
+    
+    if (strcmp(c[1], "zone") == 0) {
+        int8_t new_tz = (int8_t)atoi(c[2]);
+        if (new_tz < -12 || new_tz > 14) {
+            return 2;
+        }        
+
+        if (c[2][0] == '\0') {
+            kprintf("Current timezone: UTC ");
+            if (system_timezone >= 0) kprintf("+");
+            kprintf("%d\n", system_timezone);
+            return true;
+        }
+
+
+        system_timezone = new_tz;
+        kprintf("Timezone updated to UTC");
+        if (system_timezone >= 0) kprintf("+");
+        kprintf("%d\n", system_timezone);
+        
+        return true;
+    }
+
+    return 2;
+}
+
+
+int8_t cmd_reboot(const char c[MAX_COMMAND_ARGS][MAX_COMMAND_LEN]) {
+    kprintf("Restarting...\n");
+    outb(0x64, 0xFE); 
+    return true;
+}
+
+int8_t cmd_shutdown(const char c[MAX_COMMAND_ARGS][MAX_COMMAND_LEN]) {
+    kprintf("Shutting down system...\n");
+
+    outw(0xB004, 0x2000);
+    outw(0x4004, 0x3400);
+    outw(0x604, 0x2000);
+
+    kprintf("ACPI shutdown not supported on this hardware.\n");
+    kprintf("System halted safely. You may now turn off the power.\n");
+    
+    __asm__ __volatile__("cli; hlt");  
+    return true;
+}
 
 
 
@@ -181,35 +289,45 @@ int8_t cmd_help(const char c[MAX_COMMAND_ARGS][MAX_COMMAND_LEN]);
 
 
 command_t commands[] = {
-    {"help",    cmd_help,    "Provides help information for commands\n Usage: help [command]"},
-    {"clear",   cmd_clear,   "Clears the screen"},
-    {"echo",    cmd_echo,    "Prints text to screen\n Usage: echo [text]"},
-    {"check",   cmd_check,   "Checks ram, cs, stack, or cpu\n \tUsage: check [ram/cs/stack/cpu] [av/us/all] [b]"},
-    {"cursor",  cmd_cursor,  "Changes cursor shape\n Usage: cursor [0-2]"},
-    {"color",   cmd_color,   "Changes terminal color\n Usage: color [attr] or color rgb [bg] [fg]\n\tattr: 0x0F (hex) where lower nibble is fg and higher nibble is bg\n\tbg/fg: 0xRRGGBB (hex)"},
-    {"beep",    cmd_beep,    "sound\n Usage: beep"},
-    {"mouse",   cmd_mouse,   "Enables or disables mouse\n Usage: mouse [on/off]"},
+    {"help",      cmd_help,   "Provides help information for commands", "[command]"},
+    {"clear",     cmd_clear,  "Clears the screen",                      ""},
+    {"echo",      cmd_echo,   "Prints text to screen",                  "[text]"},
+    {"check",     cmd_check,  "Checks ram, cs, stack, or cpu",          "[ram/cs/stack/cpu] [av/us/all] [b]"},
+    {"cursor",    cmd_cursor, "Changes cursor shape",                   "[0-2]"},
+    {"color",     cmd_color,  "Changes terminal color",                 "[attr] or rgb [bg] [fg]\n\tattr: 0x0F (hex) where lower nibble is fg and higher nibble is bg\n\tbg/fg: 0xRRGGBB (hex)"},
+    {"beep",      cmd_beep,   "sound",                                  ""},
+    {"mouse",     cmd_mouse,  "Enables or disables mouse",              "[enable/disable]"},
+    {"time",      cmd_time,   "Displays current date and time",         ""},
+    {"reboot",    cmd_reboot,   "Reboots the system",                     ""},
+    {"shutdown",  cmd_shutdown, "Halts the system and powers off",        ""},
 
 
-
-    {"cls",   cmd_clear,   "Clears the screen"}
+    {"lastindex",   NULL,   "i don't want to have to add the ',' when shift+alt+downing the element of the array", ""}
     
 };
 
-
+size_t num_commands = sizeof(commands) / sizeof(command_t);
 int8_t cmd_help(const char c[MAX_COMMAND_ARGS][MAX_COMMAND_LEN]) {
     
     if (c[1][0] == '\0') {
-        kprintf("Provides help information for commands.\n");
-        kprintf("Usage: help [command]\n");
         kprintf("Command List:\n");
-        size_t num_commands = sizeof(commands) / sizeof(command_t);        
         for (size_t i=0;i<num_commands;i++)
-        kprintf(" %s\n",commands[i].name);
+        kprintf(" %s\t%s\n",commands[i].name, commands[i].usage);
         return true;
+    } else {
+        for (size_t i=0;i<num_commands;i++) {
+            if (strcmp(c[1], commands[i].name) == 0) {
+                kprintf("%s - %s\nUsage: %s %s\n", commands[i].name, commands[i].desc, commands[i].name, commands[i].usage);
+                return true;
+            }
+        }
+        
+        
     }
+
     
-    return true;
+    
+    return 2;
 }
 
 
@@ -219,8 +337,12 @@ int8_t execute_command(const char c[MAX_COMMAND_ARGS][MAX_COMMAND_LEN]) {
   
 
     for (size_t i = 0; i < num_commands; i++) 
-        if (strcmp(c[0], commands[i].name) == 0) 
+        if (strcmp(c[0], commands[i].name) == 0) {
+            if (commands[i].func == NULL) {
+                kprintf("Command '%s' is registered but not implemented yet!\n", commands[i].name);
+                return true; 
+            }
             return commands[i].func(c);
-        
+        }
     return false;
 }
