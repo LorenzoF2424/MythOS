@@ -167,18 +167,20 @@ int8_t cmd_cursor(const char c[MAX_COMMAND_ARGS][MAX_COMMAND_LEN]) {
     return 2;
 }
 
+
+
 int8_t cmd_color(const char c[MAX_COMMAND_ARGS][MAX_COMMAND_LEN]) {
     if (strcmp(c[1], "rgb") == 0) {
         uint32_t bg = htoi(c[2]);
         uint32_t fg = htoi(c[3]);
-        change_terminal_color(fg, bg);
-        //terminal_clear(); 
+        change_terminal_color(terminal_color(fg, bg));
+         
         return true;
     }
     uint8_t attr = (uint8_t)htoi(c[1]);
     if (attr > 0 && attr < 255) {
-        change_terminal_color(vga_palette[attr & 0x0F], vga_palette[(attr >> 4) & 0x0F]);
-        //terminal_clear(); 
+        change_terminal_color(terminal_color(vga_palette[attr & 0x0F], vga_palette[(attr >> 4) & 0x0F]));
+         
         return true;
     }
     return 2;

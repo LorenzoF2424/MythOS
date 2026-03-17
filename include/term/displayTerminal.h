@@ -8,11 +8,11 @@
 #include <stddef.h>
 #include <stdint.h>
 
-#define MAX_INPUT_LEN 64000
+#define MAX_INPUT_LEN 16384
 
 
 struct terminal_info_t {
-    vga_color_t color;
+    terminal_color_t color;
     point cursor;
     uint16_t limit_col;
     uint16_t limit_row;
@@ -24,6 +24,8 @@ struct terminal_info_t {
 
 extern terminal_info_t terminal_data;
 extern Spinlock terminal_lock;
+extern bool draw_info;
+extern bool draw_info_was_disabled;
 extern bool cursor_visible;
 extern bool cursor_blink;
 extern volatile bool draw_cursor;
@@ -33,14 +35,14 @@ extern uint16_t input_len;
 extern uint16_t input_pos;
 extern point cursorp;
 
-void change_terminal_color(uint32_t fg, uint32_t bg);
+void change_terminal_color(terminal_color_t new_color);
 void reset_terminal_color();
 void terminal_toggle_cursor_shape();
 void remove_cursor_shape();
 void terminal_cursor_update();
 void terminal_restore_cursor(bool was_visible);
 void reset_cursor_blink();
-void draw_char(char c, point p, vga_color_t color);
+void draw_char(char c, point p, terminal_color_t color);
 void terminal_scroll();
 void column_behaviour(terminal_info_t *t);
 void row_behaviour(terminal_info_t *t);

@@ -1,6 +1,7 @@
 #include "term/displayTerminal.h"
 
-
+bool draw_info = true;
+bool draw_info_was_disabled = false;
 terminal_info_t terminal_data = {
     .color ={
         .fg = 0xFFFFFF,
@@ -17,9 +18,27 @@ terminal_info_t terminal_data = {
 
 Spinlock terminal_lock;
 
-void change_terminal_color(uint32_t fg, uint32_t bg) {
-    terminal_data.color.fg = fg;
-    terminal_data.color.bg = bg;
+void disable_info() {
+    draw_info = false;
+    draw_info_was_disabled = true;
+}   
+
+void apply_terminal_colors(terminal_color_t old_color, terminal_color_t new_color) {
+    uint32_t total_pixels = screen_height * pitch_pixels;
+    for (uint32_t i = 0; i < total_pixels; i++) {
+        if (framebuffer[i] == old_color.fg) {
+            framebuffer[i] = new_color.fg;
+        } else if (framebuffer[i] == old_color.bg) {
+            framebuffer[i] = new_color.bg;
+        }
+    }
+}
+
+void change_terminal_color(terminal_color_t new_color) {
+    terminal_color_t old_color = terminal_data.color;
+    terminal_data.color.fg = new_color.fg;
+    terminal_data.color.bg = new_color.bg;
+    apply_terminal_colors(old_color, new_color);
 }
 
 void reset_terminal_color() {
@@ -115,7 +134,7 @@ void reset_cursor_blink() {
 }
 
 
-void draw_char(char c, point p, vga_color_t color) {
+void draw_char(char c, point p, terminal_color_t color) {
     unsigned char uc = (unsigned char)c;
     p.x*=8;
     p.y*=16;
@@ -134,15 +153,21 @@ void draw_char(char c, point p, vga_color_t color) {
 
 
 void terminal_scroll() {
-    uint32_t text_row_pixels = pitch_pixels * 16; 
+    uint32_t font_height = 16; 
+    uint32_t text_row_pixels = pitch_pixels * font_height; 
     uint32_t total_pixels = screen_height * pitch_pixels;
-    uint32_t pixels_to_copy = total_pixels - text_row_pixels;
 
-    for (uint32_t i = 0; i < pixels_to_copy; i++) {
+    uint32_t protected_rows = draw_info ? 4 : 0;
+    
+    uint32_t protected_pixels = protected_rows * font_height * pitch_pixels;
+
+   
+    for (uint32_t i = protected_pixels; i < total_pixels - text_row_pixels; i++) {
         framebuffer[i] = framebuffer[i + text_row_pixels];
     }
 
-    for (uint32_t i = pixels_to_copy; i < total_pixels; i++) {
+    
+    for (uint32_t i = total_pixels - text_row_pixels; i < total_pixels; i++) {
         framebuffer[i] = terminal_data.color.bg;
     }
 

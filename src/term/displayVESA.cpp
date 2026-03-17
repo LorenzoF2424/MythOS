@@ -27,6 +27,13 @@ uint32_t color(uint8_t r, uint8_t g, uint8_t b) {
     return ((uint32_t)r << 16) | ((uint32_t)g << 8) | (uint32_t)b;
 }
 
+terminal_color_t terminal_color(uint32_t fg, uint32_t bg) {
+    terminal_color_t c;
+    c.fg = fg;
+    c.bg = bg;
+    return c;
+}
+
 void put_pixel(uint16_t x, uint16_t y, uint32_t color) {
     
     if (x >= screen_width || y >= screen_height) return;

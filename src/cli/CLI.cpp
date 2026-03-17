@@ -4,7 +4,7 @@
 
 
 
-bool draw_info = true;
+
 uint16_t info_bar_refresh_rate = 250;
 void cli_main() {
 
@@ -45,7 +45,14 @@ void info_bar_thread() {
     
     while (true) { if (draw_info) {
         
-        
+        if (draw_info_was_disabled) {
+            uint32_t total_pixels = 3 * 16 * pitch_pixels;
+            for (uint32_t i = 0; i < total_pixels; i++) {
+            framebuffer[i] = terminal_data.color.bg;
+            }
+            draw_info_was_disabled = false;
+        }
+       
         
         
         sysCommandAt("check ram av", point(0, 1));
