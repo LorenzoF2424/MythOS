@@ -15,6 +15,7 @@ struct HeapFreeNode {
 static uint32_t cache_sizes[NUM_CACHES] = {16, 32, 64, 128, 256, 512, 1024, 2048};
 static HeapFreeNode* cache_free_lists[NUM_CACHES];
 size_t heap_allocated_bytes=0;
+Spinlock heap_lock;
 
 size_t heap_get_allocated() {
     return heap_allocated_bytes;
@@ -29,7 +30,12 @@ void init_kheap() {
 
 
 void* malloc(size_t size) {
-    if (size == 0) return nullptr;
+
+    spinlock_acquire(&heap_lock);
+    if (size == 0) {
+        spinlock_release(&heap_lock);
+        return nullptr;
+    }
 
     int cache_idx = -1;
     for (int i = 0; i < NUM_CACHES; i++) {
@@ -42,6 +48,7 @@ void* malloc(size_t size) {
 
     if (cache_idx == -1) {
         kprintf("Heap Error: malloc request too large (%d bytes)\n", size);
+        spinlock_release(&heap_lock);
         return nullptr;
     }
 
@@ -51,6 +58,7 @@ void* malloc(size_t size) {
         void* new_page = pmm_alloc_blocks(0); 
         if (!new_page) {
             kprintf("Heap Error: Out of memory (PMM returned null)\n");
+            spinlock_release(&heap_lock);
             return nullptr;
         }
 
@@ -74,12 +82,18 @@ void* malloc(size_t size) {
 
 
     heap_allocated_bytes += block_size;
+    spinlock_release(&heap_lock);
     return (void*)allocated_node;
 }
 
 
 void free(void* ptr) {
-    if (!ptr) return;
+
+    spinlock_acquire(&heap_lock);
+    if (!ptr) {
+        spinlock_release(&heap_lock);
+        return;
+    }
 
     uint64_t page_start = (uint64_t)ptr & ~0xFFF;
     SlabHeader* header = (SlabHeader*)page_start;
@@ -102,4 +116,6 @@ void free(void* ptr) {
     } else {
         kprintf("Heap Error: Attempted to free an invalid or corrupted pointer.\n");
     }
+
+    spinlock_release(&heap_lock);
 }

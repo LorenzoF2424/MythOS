@@ -16,7 +16,14 @@ int8_t cmd_clear(const char c[MAX_COMMAND_ARGS][MAX_COMMAND_LEN]) {
 }
 
 int8_t cmd_echo(const char c[MAX_COMMAND_ARGS][MAX_COMMAND_LEN]) {
-    kprintf("%s\n", input_buffer + 5);
+    
+    size_t i = 1; 
+    while (i < MAX_COMMAND_ARGS && c[i][0] != '\0') {
+        kprintf("%s ", c[i]);
+        i++;
+    }
+    
+    kprintf("\n"); 
     return true;
 }
 
@@ -40,16 +47,34 @@ int8_t cmd_check(const char c[MAX_COMMAND_ARGS][MAX_COMMAND_LEN]) {
             
             if (strcmp(c[3], "b") == 0) {
                 
+                kprintf("%d B\n", get_total_memory_mb()*1024*1024 - (used_bytes),(used_bytes));
+                return true;
+            }
+
+            kprintf("Available RAM:\t %f MB\n", double(get_total_memory_mb()) - (used_mb_float),used_mb_float);
+            return true;
+        }
+
+        if (strcmp(c[2], "adv") == 0) {
+            
+            if (strcmp(c[3], "b") == 0) {
+                
                 kprintf("Available RAM: %d B(%d B used)\n", get_total_memory_mb()*1024*1024 - (heap_get_allocated()+pmm_get_allocated()),(heap_get_allocated()+pmm_get_allocated()));
                 return true;
             }
 
-            kprintf("Available RAM: %f MB(%f B used)\n", double(get_total_memory_mb()) - (used_mb_float),used_mb_float);
+            kprintf("Available RAM: %f MB(%f MB used)\n", double(get_total_memory_mb()) - (used_mb_float),used_mb_float);
             return true;
         }
         if (strcmp(c[2], "us") == 0) {
             
-            kprintf("Used RAM: %f MB(via heap+pmm)\n", used_mb_float);
+            if (strcmp(c[3], "b") == 0) {
+                
+                kprintf("%d B\n", used_bytes);
+                return true;
+            }
+
+            kprintf("Used RAM:\t\t %f MB\n", used_mb_float);
             return true;
         }
 
@@ -119,6 +144,21 @@ int8_t cmd_check(const char c[MAX_COMMAND_ARGS][MAX_COMMAND_LEN]) {
 }
 
 int8_t cmd_cursor(const char c[MAX_COMMAND_ARGS][MAX_COMMAND_LEN]) {
+
+   
+    if (strcmp(c[1], "blink") == 0) {
+        if (strcmp(c[2], "enable") == 0) {
+            kprintf("Cursor blinking enabled\n");
+            cursor_blink = true;
+            return true;
+        }
+        if (strcmp(c[2], "disable") == 0) {
+            kprintf("Cursor blinking disabled\n");
+            cursor_blink = false;
+            return true;
+        }
+    }
+
     uint8_t cs = atoi(c[1]);
     if (cs < 3) {
         cursor_shape = cs;
@@ -147,9 +187,11 @@ int8_t cmd_color(const char c[MAX_COMMAND_ARGS][MAX_COMMAND_LEN]) {
 int8_t cmd_beep(const char c[MAX_COMMAND_ARGS][MAX_COMMAND_LEN]) {
     play_sound(750);
     sleep(1000);
+    nosound();
     kprintf("Beep activated! type 'nosound' to stop it.\n");
     return true;
 }
+
 int8_t cmd_mouse(const char c[MAX_COMMAND_ARGS][MAX_COMMAND_LEN]) {
     
     if (strcmp(c[1], "disable") == 0) {

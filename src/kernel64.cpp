@@ -6,66 +6,69 @@ extern uint8_t initstack[];
 void enable_fpu() {
     uint64_t cr0, cr4;
 
-    // 1. Leggiamo il registro CR0
     asm volatile ("mov %%cr0, %0" : "=r"(cr0));
-    cr0 &= ~(1 << 2); // Resetta il bit EM (Emulation) - dice alla CPU di usare l'hardware vero
-    cr0 |= (1 << 1);  // Setta il bit MP (Monitor co-processor)
+    cr0 &= ~(1 << 2); 
+    cr0 |= (1 << 1); 
     asm volatile ("mov %0, %%cr0" :: "r"(cr0));
 
-    // 2. Leggiamo il registro CR4 per attivare le istruzioni SSE
+    
     asm volatile ("mov %%cr4, %0" : "=r"(cr4));
-    cr4 |= (1 << 9);  // OSFXSR: Attiva il salvataggio dei registri FXSAVE/FXRSTOR
-    cr4 |= (1 << 10); // OSXMMEXCPT: Attiva le eccezioni hardware per i float
+    cr4 |= (1 << 9);  
+    cr4 |= (1 << 10); 
     asm volatile ("mov %0, %%cr4" :: "r"(cr4));
 
-    // 3. Inizializza lo stato dell'FPU
+    
     asm volatile ("fninit");
 }
 
 
 void setup_memory() {
-
-    
     init_pmm();
-
     init_vmm();
     uint64_t* kernel_pml4 = vmm_get_kernel_pml4();
 
     vmm_copy_higher_half(kernel_pml4);
 
-    
-    vmm_map_range(kernel_pml4, 0, 0, (get_total_memory_mb() + 16ULL) * 1024ULL * 1024ULL, PAGE_PRESENT | PAGE_RW);
+   
+    uint64_t ram_to_map = (get_total_memory_mb() + 16ULL) * 1024ULL * 1024ULL;
+    vmm_map_range(kernel_pml4, 0, 0, ram_to_map, PAGE_PRESENT | PAGE_RW);
 
-    // Avoid NULL pointer triple fault by mapping the first page to itself with no permissions (so it will cause a page fault instead of a triple fault)
-    vmm_map_page(kernel_pml4, 0x0, 0x0, 0);
+   
+    vmm_map_page(kernel_pml4, 0x0, 0x0, 0); 
 
     vmm_switch_pml4(kernel_pml4);
 
     init_kheap();
-   
 }
 
 void init_all() {
 
     init_display();
-    terminal_write_welcome_message();
+    
 
     init_tss();
     init_gdt();
     init_idt();
     init_exceptions();
 
+    if (draw_info) terminal_data.cursor.y = 4;
+    terminal_write_welcome_message();
     setup_memory();
-    sysCommandAt("check stack", point(42, 1));
-    sysCommandAt("check cpu", point(42, 2));
-    sysCommandAt("check cs", point(42, 0));
+    //sysCommandAt("check stack", point(42, 1));
+    //sysCommandAt("check cpu", point(42, 2));
+    //sysCommandAt("check cs", point(42, 0));
 
+    init_spurious();
     init_keyboard();
     init_timer(1000);
     enable_fpu();
     init_mouse();
 
     asm volatile ("sti");
+
+    init_scheduler();
+    
+
 }
 
 
@@ -82,11 +85,11 @@ extern "C" void main() {
 
     test();
 
-
-
+    
     kprintf("MythOS>");
     terminal_set_input_limit();
 
+    thread_create(info_bar_thread);
     
     while (true) {
 
@@ -99,6 +102,8 @@ extern "C" void main() {
 
 
 
-        //__asm__ __volatile__ ("hlt");
     }
+
+    //__asm__ __volatile__ ("hlt");
+
 }

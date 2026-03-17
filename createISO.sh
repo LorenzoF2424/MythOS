@@ -6,7 +6,7 @@ set -e
 TEMP="./tempfiles"
 OSFILENAME="MythOS"
 WORKDIR=$(pwd)
-RAM="256M"
+RAM="20M"
 
 sed -i 's/\r$//' ./builders/build.sh
 sudo ./builders/build.sh
@@ -43,4 +43,4 @@ echo "==================================================================="
 echo "Starting $OSFILENAME on QEMU..."
 echo "==================================================================="
 
-qemu-system-x86_64 -bios /usr/share/ovmf/OVMF.fd -cdrom $OSFILENAME.iso -m $RAM 2>/dev/null
+qemu-system-x86_64 -cdrom $OSFILENAME.iso -m $RAM 2>/dev/null -d int,cpu_reset -D qemu.log -no-reboot

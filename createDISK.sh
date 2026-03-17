@@ -5,7 +5,7 @@ set -e
 # Variables
 TEMP="./tempfiles"
 OSFILENAME="MythOS"
-RAM="256M"
+RAM="20M"
 
 sed -i 's/\r$//' ./builders/build.sh
 sudo ./builders/build.sh
@@ -36,4 +36,4 @@ echo "==================================================================="
 echo "Starting $OSFILENAME on QEMU..."
 echo "==================================================================="
 
-qemu-system-x86_64 -drive format=raw,file=$OSFILENAME.img -m $RAM 2>/dev/null 
+qemu-system-x86_64 -drive format=raw,file=$OSFILENAME.img -m $RAM 2>/dev/null

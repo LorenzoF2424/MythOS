@@ -12,12 +12,17 @@
 #include "mem/vmm.h"
 #include "mem/kheap.h"
 #include "idt/gdt.h"
-#include "idt/IDT.h"
+#include "idt/idt.h"
 #include "idt/exceptions/tss.h"
 #include "idt/rtc/rtc.h"
+#include "idt/spurious/spurious.h"
+#include "sched/scheduler.h"
+
  
+extern bool draw_info;
 
 extern void cli_main();
+extern void info_bar_thread();
 
 
 

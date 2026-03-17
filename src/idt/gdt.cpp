@@ -34,25 +34,32 @@ void init_gdt() {
     gdt_ptr.base  = (uint64_t)&gdt;
 
     gdt_set_gate(0, 0, 0, 0, 0);
-    
-    // 2. Kernel Code (0x08): Access 0x9A, Granularity 0xAF (L bit for 64-bit)
-    gdt_set_gate(1, 0, 0xFFFFFFFF, 0x9A, 0xAF);
-    
-    // 3. Kernel Data (0x10): Access 0x92, Granularity 0xCF
-    gdt_set_gate(2, 0, 0xFFFFFFFF, 0x92, 0xCF);
-    
-    // 4. User Code (0x18): Access 0xFA
-    gdt_set_gate(3, 0, 0xFFFFFFFF, 0xFA, 0xAF);
-    
-    // 5. User Data (0x20): Access 0xF2
-    gdt_set_gate(4, 0, 0xFFFFFFFF, 0xF2, 0xCF);
+    gdt_set_gate(1, 0, 0xFFFFFFFF, 0x9A, 0xAF); // 0x08 kernel code
+    gdt_set_gate(2, 0, 0xFFFFFFFF, 0x92, 0xCF); // 0x10 kernel data
+    gdt_set_gate(3, 0, 0xFFFFFFFF, 0xFA, 0xAF); // 0x18 user code
+    gdt_set_gate(4, 0, 0xFFFFFFFF, 0xF2, 0xCF); // 0x20 user data
+    gdt_set_tss(5, (uint64_t)&main_tss, sizeof(main_tss) - 1); // 0x28 TSS
 
-    // 6. TSS Descriptor (0x28) -  slot 5 and 6
-    gdt_set_tss(5, (uint64_t)&main_tss, sizeof(main_tss) - 1);
-
-    // Loading the new GDT
     asm volatile("lgdt %0" : : "m"(gdt_ptr));
 
-    // Loading the TSS (offset 0x28 because it's the 5th slot: 5 * 8 = 40 = 0x28)
+    asm volatile(
+        "pushq $0x08\n"
+        "lea 1f(%%rip), %%rax\n"
+        "pushq %%rax\n"
+        "lretq\n"
+        "1:\n"
+        ::: "rax"
+    );
+
+    asm volatile(
+        "mov $0x10, %%ax\n"
+        "mov %%ax, %%ds\n"
+        "mov %%ax, %%es\n"
+        "mov %%ax, %%fs\n"
+        "mov %%ax, %%gs\n"
+        "mov %%ax, %%ss\n"
+        ::: "ax"
+    );
+
     asm volatile("ltr %%ax" : : "a"(0x28));
 }

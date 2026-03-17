@@ -11,7 +11,7 @@ OSFILENAME="MythicOS"
 bbP="$Myth/bootbootstuff"
 
 
-ASSEMBLE="nasm -f elf64"
+ASSEMBLE="nasm -f elf64 -I include/gnu_utils/nasm"
 CXX="x86_64-elf-g++"
 LD="x86_64-elf-ld"
 CXXFLAGS="-std=c++17 -I include -ffreestanding -mcmodel=large -mno-red-zone -fstack-protector-all -fno-exceptions -fno-rtti -c"

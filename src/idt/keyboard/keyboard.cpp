@@ -49,10 +49,11 @@ void handle_character_input(char c) {
 
 void process_keyboard_events() {
     uint8_t scancode;
-    
+    bool key_processed = false;
     
     while(kbd_pop(&scancode)) {
         
+        key_processed = true;
         draw_cursor=false;
         remove_cursor_shape();
 
@@ -157,7 +158,10 @@ void process_keyboard_events() {
             
             terminal_data.cursor = saved;
         }
+        
     }
-
-    draw_cursor=true;
+    if (key_processed) {
+        draw_cursor=true;
+        reset_cursor_blink();
+    }
 }

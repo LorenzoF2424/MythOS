@@ -15,7 +15,9 @@ void prepare_for_next_command() {
 
 
 void sysCommand(const char *command) {
-    if (command == NULL || command[0] == '\0') return;    
+    if (command == NULL || command[0] == '\0') {
+        return;    
+    }
 
 
     //-------------------------------FINDING ARGS------------------------------------------
@@ -54,10 +56,11 @@ void sysCommand(const char *command) {
 
 void sysCommandAt(const char *command, point p) {
 
-    
-    point temp;
-    temp = terminal_data.cursor;
-    cursorp = temp;
+    spinlock_acquire(&terminal_lock);
+    bool was_visible = cursor_visible;
+    remove_cursor_shape();
+
+    point temp = terminal_data.cursor;
     terminal_data.cursor = p;
 
     
@@ -65,7 +68,8 @@ void sysCommandAt(const char *command, point p) {
 
     terminal_data.cursor = temp;
     draw_cursor=true;
-
+    terminal_restore_cursor(was_visible);
+    spinlock_release(&terminal_lock);
 
 }
 

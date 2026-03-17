@@ -2,6 +2,7 @@
 
 
 extern BOOTBOOT bootboot;
+Spinlock pmm_lock;
 
 FreeBlock* free_lists[MAX_ORDER + 1];
 uint64_t total_free_memory = 0;
@@ -70,7 +71,12 @@ void init_pmm() {
 }
 
 void* pmm_alloc_blocks(uint8_t order) {
-    if (order > MAX_ORDER) return nullptr;
+
+    spinlock_acquire(&pmm_lock);
+    if (order > MAX_ORDER) {
+        spinlock_release(&pmm_lock);
+        return nullptr;
+    }
 
     for (uint8_t i = order; i <= MAX_ORDER; i++) {
         if (free_lists[i] != nullptr) {
@@ -82,15 +88,20 @@ void* pmm_alloc_blocks(uint8_t order) {
                 pmm_push_block((void*)buddy, i);
             }
             pmm_allocated_bytes += get_size(order);
+            spinlock_release(&pmm_lock);
             return block;
         }
     }
     
     kprintf("PANIC: Out of physical memory!\n");
+    spinlock_release(&pmm_lock);
     return nullptr;
+    
 }
 
 void pmm_free_blocks(void* ptr, uint8_t order) {
+
+    spinlock_acquire(&pmm_lock);
     uint64_t addr = (uint64_t)ptr;
 
     pmm_allocated_bytes -= get_size(order);
@@ -118,4 +129,5 @@ void pmm_free_blocks(void* ptr, uint8_t order) {
     }
     
     pmm_push_block((void*)addr, order);
+    spinlock_release(&pmm_lock);
 }

@@ -3,10 +3,16 @@
 
 #include <stdint.h>
 
+struct registers_t {
+    uint64_t r15, r14, r13, r12, r11, r10, r9, r8;
+    uint64_t rbp, rdi, rsi, rdx, rcx, rbx, rax;
+    uint64_t int_no, err_code;
+    uint64_t rip, cs, rflags, rsp, ss;
+} __attribute__((packed));
 
 extern void init_exceptions();
 
-extern "C" void exception_handler(uint64_t interrupt_number, uint64_t error_code);
+extern "C" void exception_handler(registers_t* regs);
 
 
 

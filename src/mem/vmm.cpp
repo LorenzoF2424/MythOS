@@ -24,6 +24,17 @@ void init_vmm() {
     kprintf("VMM Initialized (PML4: %p)\n", (uint64_t)kernel_pml4);
 }
 
+void vmm_copy_boot_mappings(uint64_t* new_pml4) {
+    uint64_t* current_pml4;
+    asm volatile("mov %%cr3, %0" : "=r"(current_pml4));
+
+    
+    for (int i = 256; i < 512; i++) {
+        new_pml4[i] = current_pml4[i];
+    }
+}
+
+
 uint64_t* vmm_get_kernel_pml4() {
     return kernel_pml4;
 }

@@ -4,6 +4,7 @@
 #include "displayVESA.h"
 #include "fontBitmap.h"
 #include "gnu_utils/point.h"
+#include "sched/spinlock.h"
 #include <stddef.h>
 #include <stdint.h>
 
@@ -22,7 +23,9 @@ struct terminal_info_t {
 };
 
 extern terminal_info_t terminal_data;
+extern Spinlock terminal_lock;
 extern bool cursor_visible;
+extern bool cursor_blink;
 extern volatile bool draw_cursor;
 extern uint8_t cursor_shape;
 extern char input_buffer[MAX_INPUT_LEN];
@@ -34,6 +37,9 @@ void change_terminal_color(uint32_t fg, uint32_t bg);
 void reset_terminal_color();
 void terminal_toggle_cursor_shape();
 void remove_cursor_shape();
+void terminal_cursor_update();
+void terminal_restore_cursor(bool was_visible);
+void reset_cursor_blink();
 void draw_char(char c, point p, vga_color_t color);
 void terminal_scroll();
 void column_behaviour(terminal_info_t *t);

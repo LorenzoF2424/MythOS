@@ -1,7 +1,7 @@
 #ifndef KEYBOARD_H
 #define KEYBOARD_H
 
-#include "idt/IDT.h"
+#include "idt/idt.h"
 
 #include "cmos/io.h"
 

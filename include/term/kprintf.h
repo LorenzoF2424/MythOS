@@ -4,6 +4,10 @@
 #include <stdarg.h>
 #include <stdint.h>
 #include "displayTerminal.h"
+#include "sched/spinlock.h"
+
+
+
 
 void print_int(int num);
 void print_long(long num);

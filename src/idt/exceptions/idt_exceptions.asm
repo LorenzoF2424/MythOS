@@ -1,5 +1,7 @@
 [BITS 64]
 
+
+%include "macros.asm"  
 ; Import the C++ function from handler.cpp
 extern exception_handler
 
@@ -66,56 +68,19 @@ ISR_NOERRCODE 31
 ; Saves registers, calls the C++ handler, and restores everything
 ; ==============================================================================
 isr_common_stub:
-    ; 1. Save all 64-bit general-purpose registers
-    push rax
-    push rbx
-    push rcx
-    push rdx
-    push rsi
-    push rdi
-    push rbp
-    push r8
-    push r9
-    push r10
-    push r11
-    push r12
-    push r13
-    push r14
-    push r15
-
-    ; 2. Prepare arguments for C++ (System V AMD64 ABI)
-    ; C++ expects: exception_handler(int_number, error_code)
-    ; In 64-bit functions, the first argument goes into RDI, the second into RSI
     
-    ; We pushed 15 8-byte registers (120 bytes total).
-    ; So the interrupt number is located at RSP + 120
-    mov rdi, [rsp + 120] 
-    
-    ; The Error Code is right below it, at RSP + 128
-    mov rsi, [rsp + 128] 
+    pushall
 
-    ; 3. Call our C++ "Brain"
+    
+    mov rdi, rsp 
+
+    
     call exception_handler
 
-    ; 4. Restore registers (in the exact reverse order they were saved!)
-    pop r15
-    pop r14
-    pop r13
-    pop r12
-    pop r11
-    pop r10
-    pop r9
-    pop r8
-    pop rbp
-    pop rdi
-    pop rsi
-    pop rdx
-    pop rcx
-    pop rbx
-    pop rax
+    
+    popall
 
-    ; 5. Clean up the stack by removing the 2 numbers we pushed (8 bytes + 8 bytes = 16 bytes)
+  
     add rsp, 16
 
-    ; 6. Return to the interrupted code (iretq is mandatory in 64-bit!)
-    iretq
+iretq

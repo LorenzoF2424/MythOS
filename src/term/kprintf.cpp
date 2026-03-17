@@ -66,9 +66,16 @@ void print_ptr(uint64_t ptr) {
     print_number(ptr, 16, false, 16, '0');
 }
 
+void unlocked_kprintf(const char* format, ...) {
 
+
+
+    
+}
 
 void kprintf(const char* format, ...) {
+
+    spinlock_acquire(&terminal_lock);
     va_list args;
     va_start(args, format);
 
@@ -108,7 +115,7 @@ void kprintf(const char* format, ...) {
                 }
                 case 's': { 
                     const char* str = va_arg(args, const char*); 
-                    terminal_write(str ? str : "(null)"); // Protezione anti-crash
+                    terminal_write(str ? str : "(null)"); 
                     break; 
                 }
                 case 'c': { 
@@ -158,4 +165,9 @@ void kprintf(const char* format, ...) {
     }
 
     va_end(args);
+
+    spinlock_release(&terminal_lock);
 }
+
+
+

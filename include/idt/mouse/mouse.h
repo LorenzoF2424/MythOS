@@ -5,7 +5,7 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include "cmos/io.h" 
-#include "idt/IDT.h" 
+#include "idt/idt.h" 
 #include "gnu_utils/point.h" 
 
 

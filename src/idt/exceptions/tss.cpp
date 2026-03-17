@@ -5,7 +5,7 @@
 
 
 
-static uint8_t double_fault_stack[4096]; // 4KB di stack dedicato
+static uint8_t double_fault_stack[4096]; 
 tss_t main_tss;
 
 void init_tss() {

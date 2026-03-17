@@ -2,7 +2,7 @@
 #define COMMANDS_H
 
 
-#include "idt/IDT.h"
+#include "idt/idt.h"
 
 typedef struct {
     const char* name;

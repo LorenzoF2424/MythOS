@@ -1,21 +1,17 @@
 #include "cli/CLI.h"
+#include "gnu_utils/string.h"
 
 
 
 
-
+bool draw_info = true;
+uint16_t info_bar_refresh_rate = 250;
 void cli_main() {
 
     process_keyboard_events();
     
-    if (every(250)) {
-        sysCommandAt("check ram av", point(54, 0));
-        sysCommandAt("time clock", point(MAX_COLUMNS - 8, 0));
-        sysCommandAt("time date", point(MAX_COLUMNS - 10, 1));
 
-    }
-
-
+    
     
 
 
@@ -25,13 +21,47 @@ void cli_main() {
     
     draw_cursor = true; 
     
-    if (every(500) && draw_cursor) {
-        cursorp = terminal_data.cursor;
-        terminal_toggle_cursor_shape();
-        cursor_visible = !cursor_visible; 
+    if (every(500)) terminal_cursor_update();
+    
+
+
+
+ 
+}
+
+
+
+
+
+
+void info_bar_thread() { 
+    
+    char info_bar_border[MAX_COLUMNS+1]; 
+    
+    for (size_t i=0;i<MAX_COLUMNS;i++) {
+        info_bar_border[i]='_';
     }
+    info_bar_border[MAX_COLUMNS]='\0';
+    
+    while (true) { if (draw_info) {
+        
+        
+        
+        
+        sysCommandAt("check ram av", point(0, 1));
+        sysCommandAt("echo /", point(27, 1));
+        sysCommandAt("check ram av b", point(28, 1));
 
+        sysCommandAt("check ram us ", point(0, 2));
+        sysCommandAt("echo /", point(27, 2));
+        sysCommandAt("check ram us b", point(28, 2));
+        
+        sysCommandAt("time clock", point(MAX_COLUMNS - 8, 1));
+        sysCommandAt("time date", point(MAX_COLUMNS - 11, 2));
+            
+            
+        terminal_write_at(info_bar_border, point(0, 3));
 
-
-
+        
+    }thread_sleep(info_bar_refresh_rate);}
 }

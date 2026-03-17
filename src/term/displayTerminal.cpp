@@ -15,7 +15,7 @@ terminal_info_t terminal_data = {
     .tab_size = 4
 };
 
-
+Spinlock terminal_lock;
 
 void change_terminal_color(uint32_t fg, uint32_t bg) {
     terminal_data.color.fg = fg;
@@ -29,6 +29,7 @@ void reset_terminal_color() {
 
 point cursorp;
 bool cursor_visible = false;
+bool cursor_blink = true;
 volatile bool draw_cursor=true;
 uint8_t cursor_shape=0;
 void terminal_toggle_cursor_shape() {
@@ -81,6 +82,39 @@ void remove_cursor_shape() {
     }
 }
 
+void terminal_cursor_update() {
+    if (!draw_cursor) return;
+
+    if (!cursor_blink && cursor_visible) return;
+
+    
+    
+    cursorp = terminal_data.cursor;
+    terminal_toggle_cursor_shape();
+    cursor_visible = !cursor_visible; 
+}
+
+void terminal_restore_cursor(bool was_visible) {
+    if (!was_visible) return;
+
+    cursorp = terminal_data.cursor;
+    terminal_toggle_cursor_shape();
+    cursor_visible = true;
+}
+
+void reset_cursor_blink() {
+    
+    if (!draw_cursor) return;
+
+    cursorp = terminal_data.cursor; 
+
+    if (cursor_visible) return;
+
+    terminal_toggle_cursor_shape();
+    cursor_visible = true;
+}
+
+
 void draw_char(char c, point p, vga_color_t color) {
     unsigned char uc = (unsigned char)c;
     p.x*=8;
@@ -100,7 +134,6 @@ void draw_char(char c, point p, vga_color_t color) {
 
 
 void terminal_scroll() {
-    // Ora ragioniamo in PIXEL a 32-bit, non più in byte!
     uint32_t text_row_pixels = pitch_pixels * 16; 
     uint32_t total_pixels = screen_height * pitch_pixels;
     uint32_t pixels_to_copy = total_pixels - text_row_pixels;
@@ -177,7 +210,6 @@ void terminal_render_from_buffer(uint16_t start_pos) {
 
 
 
-// --- TERMINAL PUTCHAR AGGIORNATA ---
 inline void terminal_putchar(char c) {
 
     remove_cursor_shape();
@@ -201,7 +233,6 @@ inline void terminal_putchar(char c) {
             uint16_t spaces = terminal_data.tab_size - (terminal_data.cursor.x % terminal_data.tab_size);
             terminal_data.cursor.x += spaces;
             
-            // Controlla se il Tab ti ha fatto uscire dallo schermo
             if (terminal_data.cursor.x >= MAX_COLUMNS) {
                 terminal_data.cursor.x = 0;
                 terminal_data.cursor.y++;
@@ -228,17 +259,26 @@ inline void terminal_putchar(char c) {
             terminal_data.cursor.x++;
         break;
     }
+    
 }
 
 
 
 void terminal_putchar_at(char c, point p) {
-    point temp;
-    temp.x = terminal_data.cursor.x;
-    temp.y = terminal_data.cursor.y;
-    terminal_set_cursor(&terminal_data, p);
+
+    spinlock_acquire(&terminal_lock);
+    bool was_visible = cursor_visible; 
+    
+    remove_cursor_shape(); 
+
+    point temp = terminal_data.cursor;
+    terminal_data.cursor = p;
     terminal_putchar(c);
-    terminal_set_cursor(&terminal_data, temp);
+    terminal_data.cursor = temp;
+
+    terminal_restore_cursor(was_visible);
+    spinlock_release(&terminal_lock);
+
 }
 
 void terminal_write(const char* str) {
@@ -248,18 +288,33 @@ void terminal_write(const char* str) {
 }
 
 void terminal_write_at(const char* str, point p) {
+    
+    spinlock_acquire(&terminal_lock);
+    
+    bool was_visible = cursor_visible;
+    remove_cursor_shape();
+
+    point temp = terminal_data.cursor;
+    terminal_set_cursor(&terminal_data, p);
+    
     for (size_t i = 0; str[i] != '\0'; i++) {
-        terminal_putchar_at(str[i], p);
-        p.x++;
+        terminal_putchar(str[i]);
     }
+    
+    terminal_set_cursor(&terminal_data, temp);
+
+    terminal_restore_cursor(was_visible);
+    spinlock_release(&terminal_lock);
 }
 
 void terminal_clear() {
+    spinlock_acquire(&terminal_lock);
     uint32_t total_pixels = screen_height * pitch_pixels;
     for (uint32_t i = 0; i < total_pixels; i++) {
         framebuffer[i] = terminal_data.color.bg;
     }
     terminal_set_cursor(&terminal_data, (point){0, 0});
+    spinlock_release(&terminal_lock);
 }
 
 

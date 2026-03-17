@@ -17,8 +17,8 @@ struct tss_entry_struct {
 
 typedef struct tss_entry_struct tss_t;
 extern tss_t main_tss;
-// Funzioni per inizializzare e caricare la TSS
+
 void init_tss();
-extern "C" void flush_tss(); // Questa sarà in assembly
+extern "C" void flush_tss(); 
 
 #endif
