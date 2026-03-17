@@ -34,14 +34,14 @@ void apply_terminal_colors(terminal_color_t old_color, terminal_color_t new_colo
     }
 }
 
-void change_terminal_color(terminal_color_t new_color) {
+void terminal_change_color(terminal_color_t new_color) {
     terminal_color_t old_color = terminal_data.color;
     terminal_data.color.fg = new_color.fg;
     terminal_data.color.bg = new_color.bg;
     apply_terminal_colors(old_color, new_color);
 }
 
-void reset_terminal_color() {
+void terminal_reset_color() {
     terminal_data.color.fg = 0xFFFFFF;
     terminal_data.color.bg = 0x000000;
 }
@@ -139,7 +139,7 @@ void draw_char(char c, point p, terminal_color_t color) {
     p.x*=8;
     p.y*=16;
     for (uint8_t row = 0; row < 16; row++) {
-        unsigned char bits = font_bitmap[uc][row];
+        unsigned char bits = fontBitmap[uc][row];
         for (uint8_t col = 0; col < 8; col++) {
             if (bits & (0x80 >> col)) {
                 put_pixel(p.x + col, p.y + row, color.fg);

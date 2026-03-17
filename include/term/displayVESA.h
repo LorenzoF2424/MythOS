@@ -5,6 +5,8 @@
 #include "bootboot.h"
 
 
+#define VGA_PALLETTE_NUMBER 4
+
 extern BOOTBOOT bootboot;
 extern uint32_t fb;
 
@@ -17,13 +19,23 @@ extern uint32_t* framebuffer;
 extern uint16_t MAX_COLUMNS;
 extern uint16_t MAX_ROWS;
 
+
+enum vga_pallette_type {
+    DEFAULT = 0,
+    SOFT = 1,
+    SOLARIZED = 2,
+    CUSTOM = 3
+};
 struct terminal_color_t {
     uint32_t fg;
     uint32_t bg;
 };
 
-terminal_color_t terminal_color(uint32_t fg, uint32_t bg);
-extern const uint32_t vga_palette[16];
+terminal_color_t terminal_color(uint32_t bg, uint32_t fg);
+
+extern vga_pallette_type current_palette;
+extern const uint32_t vga_palette[VGA_PALLETTE_NUMBER][16];
+
 
 void init_display();
 uint32_t color(uint8_t r, uint8_t g, uint8_t b);

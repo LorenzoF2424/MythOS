@@ -35,8 +35,8 @@ extern uint16_t input_len;
 extern uint16_t input_pos;
 extern point cursorp;
 
-void change_terminal_color(terminal_color_t new_color);
-void reset_terminal_color();
+void terminal_change_color(terminal_color_t new_color);
+void terminal_reset_color();
 void terminal_toggle_cursor_shape();
 void remove_cursor_shape();
 void terminal_cursor_update();

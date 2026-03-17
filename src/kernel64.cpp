@@ -52,6 +52,7 @@ void init_all() {
     init_exceptions();
 
     if (draw_info) terminal_data.cursor.y = 4;
+    terminal_change_color(terminal_color(vga_palette[current_palette][0], vga_palette[current_palette][15]));
     terminal_write_welcome_message();
     setup_memory();
     //sysCommandAt("check stack", point(42, 1));
@@ -73,7 +74,10 @@ void init_all() {
 
 
 void test() {
-  
+  for (size_t i=0;i<256;i++) {
+    kprintf("%d: %c   ", i, i);
+  }
+  kprintf("\n");
 }
 
 extern "C" void main() { 

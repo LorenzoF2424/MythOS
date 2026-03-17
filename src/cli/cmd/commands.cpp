@@ -170,16 +170,41 @@ int8_t cmd_cursor(const char c[MAX_COMMAND_ARGS][MAX_COMMAND_LEN]) {
 
 
 int8_t cmd_color(const char c[MAX_COMMAND_ARGS][MAX_COMMAND_LEN]) {
+
+
+    if (strcmp(c[1], "type") == 0) {
+
+        switch(htoi(c[2])) {
+            case 0: current_palette = DEFAULT; break;
+            case 1: current_palette = SOFT; break;
+            case 2: current_palette = SOLARIZED; break;
+            case 3: current_palette = CUSTOM; break;
+            default: return 2;
+        }
+        
+         
+        return true;
+    }
+
     if (strcmp(c[1], "rgb") == 0) {
         uint32_t bg = htoi(c[2]);
         uint32_t fg = htoi(c[3]);
-        change_terminal_color(terminal_color(fg, bg));
+        if (bg == fg ) {
+            kprintf("Background and Foreground cannot be the same!\n");
+            return true;
+        }
+        terminal_change_color(terminal_color(fg, bg));
          
         return true;
     }
     uint8_t attr = (uint8_t)htoi(c[1]);
-    if (attr > 0 && attr < 255) {
-        change_terminal_color(terminal_color(vga_palette[attr & 0x0F], vga_palette[(attr >> 4) & 0x0F]));
+    if ((attr>>4) == (attr & 0x0F)) {
+            kprintf("Background and Foreground cannot be the same!\n");
+            return true;
+    }
+    if (attr >= 0 && attr <= 255) {
+
+        terminal_change_color(terminal_color(vga_palette[current_palette][(attr >> 4) & 0x0F], vga_palette[current_palette][attr & 0x0F]));
          
         return true;
     }
