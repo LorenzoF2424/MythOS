@@ -2,7 +2,7 @@
 #define KEYBOARD_H
 
 #include "idt/idt.h"
-
+#include "idt/keyboard/keyboardLayout.h"
 #include "cmos/io.h"
 
 extern bool shift_pressed;

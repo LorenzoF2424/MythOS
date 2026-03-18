@@ -115,13 +115,8 @@ void process_keyboard_events() {
 
         unsigned char ascii = 0;
         if (altgr_pressed) {
-            switch (scancode) {
-                case 0x1A: ascii = shift_pressed ? '{' : '['; break; 
-                case 0x1B: ascii = shift_pressed ? '}' : ']'; break; 
-                case 0x27: ascii = shift_pressed ? (unsigned char)135 : '@'; break; 
-                case 0x2B: ascii = shift_pressed ? (unsigned char)248 : '#'; break; 
-            }
-        } else ascii = shift_pressed ? kbd_IT_shift[scancode] : kbd_IT[scancode];
+            ascii = current_layout->altgr[scancode];
+        } else ascii = shift_pressed ? current_layout->shift[scancode] : current_layout->normal[scancode];
         
         if (ascii==0) {
             continue;

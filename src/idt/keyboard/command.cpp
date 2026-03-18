@@ -46,7 +46,7 @@ void sysCommand(const char *command) {
     switch (execute_command(args)) {
 
         case 0: kprintf("%s: command not found\n", args[0]); break;
-        case 2: kprintf("%s: not enough parameters\n", args[0]); break;
+        case 2: kprintf("%s: not enough parameters\nTry '%s help' for more information\n", args[0], args[0]); break;
 
 
     } 

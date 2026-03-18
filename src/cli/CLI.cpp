@@ -54,14 +54,15 @@ void info_bar_thread() {
         }
        
         
-        
-        sysCommandAt("check ram av", point(0, 1));
-        sysCommandAt("echo /", point(27, 1));
-        sysCommandAt("check ram av b", point(28, 1));
+        terminal_write_at("Available RAM: ", point(0, 1));
+        sysCommandAt("check ram av kb", point(16, 1));
+        terminal_write_at("/", point(30, 1));
+        sysCommandAt("check ram av b", point(32, 1));
 
-        sysCommandAt("check ram us ", point(0, 2));
-        sysCommandAt("echo /", point(27, 2));
-        sysCommandAt("check ram us b", point(28, 2));
+        terminal_write_at("Used RAM: ", point(0, 2));
+        sysCommandAt("check ram us kb", point(16, 2));
+        terminal_write_at("/", point(30, 2));
+        sysCommandAt("check ram us b", point(32, 2));
         
         sysCommandAt("time clock", point(MAX_COLUMNS - 8, 1));
         sysCommandAt("time date", point(MAX_COLUMNS - 11, 2));

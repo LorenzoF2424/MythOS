@@ -73,11 +73,15 @@ void init_all() {
 }
 
 
-void test() {
+void ascii_test() {
   for (size_t i=0;i<256;i++) {
     kprintf("%d: %c   ", i, i);
   }
   kprintf("\n");
+}
+
+void test() {
+    
 }
 
 extern "C" void main() { 

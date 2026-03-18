@@ -17,6 +17,10 @@ int32_t strcmp(const char* s1, const char* s2);
 
 char* strtok(char* str, const char delimiter);
 
+constexpr uint32_t hash(const char* str, uint32_t h = 5381) {
+    return (*str == '\0') ? h : hash(str + 1, ((h << 5) + h) + *str);
+}
+
 int atoi(const char *str);
 
 uint32_t htoi(const char *str);
