@@ -23,6 +23,7 @@ extern bool draw_info;
 
 extern void cli_main();
 extern void info_bar_thread();
+extern void draw_info_bar();
 
 
 

@@ -12,7 +12,9 @@
 
 
 int8_t cmd_clear(char c[MAX_COMMAND_ARGS][MAX_COMMAND_LEN]) {
-    terminal_clear();
+    
+
+    terminal.clear();
     return true;
 }
 
@@ -143,9 +145,63 @@ int8_t cmd_check(char c[MAX_COMMAND_ARGS][MAX_COMMAND_LEN]) {
                     mouse_left_click ? "YES" : "NO", 
                     mouse_right_click ? "YES" : "NO", 
                     mouse_middle_click ? "YES" : "NO");
-            return true;
-        }
+            
+            // Display the accumulated scroll wheel value (Z-axis)
+            kprintf("Scroll   : Z = %d\n", mouse_scroll);
+            
+        }return true;
+        
 
+        case hash("ascii"):
+            
+            kprintf("ASCII Table (Code Page 437) - 8 Columns Layout:\n");
+
+            // 1. Top border (8 columns, each 8 characters wide)
+            // \xDA = ┌, \xC4 = ─, \xC2 = ┬, \xBF = ┐
+            kprintf("\xDA"); 
+            for (int c = 0; c < 8; c++) {
+                kprintf("\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4"); // 8 horizontal lines
+                if (c < 7) kprintf("\xC2");         // T-junction pointing down
+            }
+            kprintf("\xBF\n"); // Top-right corner
+
+            // 2. Print the 32 rows
+            for (int r = 0; r < 32; r++) {
+                
+                kprintf("\xB3"); // Leftmost vertical border (│)
+                
+                for (int c = 0; c < 8; c++) {
+                    // Calculate the actual ASCII value based on column (0-7) and row (0-31)
+                    int i = (c * 32) + r;
+                    
+                    // Filter out control characters that would break the terminal layout
+                    char display_c = (i == 0 || i == '\b' || i == '\t' || i == '\n' || i == '\r') ? '.' : (unsigned char)i;
+                    
+                    // Print with luxurious spacing:
+                    // " %3d: %c " = 1 space + 3 nums + 2 (": ") + 1 char + 1 space = 8 chars
+                    kprintf(" %3d: %c \xB3", i, display_c);
+                }
+                kprintf("\n");
+            }
+
+            // 3. Print the bottom border
+            // \xC0 = └, \xC1 = ┴, \xD9 = ┘
+            kprintf("\xC0"); 
+            for (int c = 0; c < 8; c++) {
+                kprintf("\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4"); // 8 horizontal lines
+                if (c < 7) kprintf("\xC1");         // T-junction pointing up
+            }
+            kprintf("\xD9\n"); // Bottom-right corner
+
+            
+        return true;
+
+        case hash("logs"):
+
+            for (size_t i=0;i<log_index;i++)
+                kprintf("%s\n", klogs[i]);
+
+        return true;
         default: return 2;
     }
 
@@ -178,43 +234,105 @@ int8_t cmd_cursor(char c[MAX_COMMAND_ARGS][MAX_COMMAND_LEN]) {
 
 int8_t cmd_color(char c[MAX_COMMAND_ARGS][MAX_COMMAND_LEN]) {
 
-
-    if (strcmp(c[1], "type") == 0) {
-
-        switch(htoi(c[2])) {
-            case 0: current_palette = DEFAULT; break;
-            case 1: current_palette = SOFT; break;
-            case 2: current_palette = SOLARIZED; break;
-            case 3: current_palette = CUSTOM; break;
-            default: return 2;
-        }
-        
-         
-        return true;
-    }
-
-    if (strcmp(c[1], "rgb") == 0) {
-        uint32_t bg = htoi(c[2]);
-        uint32_t fg = htoi(c[3]);
-        if (bg == fg ) {
-            kprintf("Background and Foreground cannot be the same!\n");
+    switch (hash(c[1])) {
+        // ==========================================
+        // Palette Type Command (e.g., "color type 1")
+        // ==========================================
+        case hash("type"): {
+            switch(htoi(c[2])) {
+                case 0: current_palette = DEFAULT; break;
+                case 1: current_palette = SOFT; break;
+                case 2: current_palette = SOLARIZED; break;
+                case 3: current_palette = CUSTOM; break;
+                default: return 2; // Early return for invalid type
+            }
             return true;
         }
-        terminal_change_color(terminal_color(fg, bg));
-         
-        return true;
-    }
-    uint8_t attr = (uint8_t)htoi(c[1]);
-    if ((attr>>4) == (attr & 0x0F)) {
-            kprintf("Background and Foreground cannot be the same!\n");
-            return true;
-    }
-    if (attr >= 0 && attr <= 255) {
 
-        terminal_change_color(terminal_color(vga_palette[current_palette][(attr >> 4) & 0x0F], vga_palette[current_palette][attr & 0x0F]));
-         
-        return true;
+        // ==========================================
+        // RGB Command (e.g., "color rgb 000000 FFFFFF")
+        // ==========================================
+        case hash("rgb"): {
+            uint32_t bg = htoi(c[2]);
+            uint32_t fg = htoi(c[3]);
+            
+            // Early Return: Background and Foreground cannot be the same
+            if (bg == fg) {
+                kprintf("Background and Foreground cannot be the same!\n");
+                return 2;
+            }
+            
+            // Check if we are coloring the info bar
+            if (hash(c[4]) == hash("info")) {
+                info_bar_window.change_color(terminal_color(fg, bg));
+                return true;
+            }
+            
+            // Otherwise, color the main terminal
+            terminal.change_color(terminal_color(fg, bg));
+            return true;
+        }
+
+        // ==========================================
+        // Theme & Predefined Colors Command (e.g., "color theme matrix" or "color theme red")
+        // ==========================================
+        case hash("theme"): {
+            // Early Return 1: Check if the user provided an argument 
+            // c[0]="color", c[1]="theme", c[2]=<name>
+            if (!c[2] || c[2][0] == '\0') {
+               
+                return 2;
+            }
+
+            // 1. Try to load it as a syntax highlighting theme first
+            if (load_theme(c[2])) {
+                // Force the terminal to rescan the RAM buffer and re-apply colors
+                // We pass the current base color so the background stays the same
+                terminal.change_color(terminal.color); 
+                
+                kprintf("Theme '%s' applied successfully!\n", c[2]);
+                return true;
+            }
+
+           
+            return 2;
+            
+        }
+
+        // ==========================================
+        // Standard VGA Attribute Command (e.g., "color 0A")
+        // ==========================================
+        default: {
+            // Parse as an integer first to validate bounds safely
+            int32_t raw_attr = htoi(c[1]);
+            
+            // Early Return 1: Check if the color is within 0-255 range
+            if (raw_attr < 0 || raw_attr > 255) { 
+                kprintf("Invalid Color.\n");
+                return 2;
+            }
+
+            // Safe cast now that we know it's within bounds
+            uint8_t attr = (uint8_t)raw_attr;
+            
+            // Early Return 2: Background and Foreground cannot be the same
+            if ((attr >> 4) == (attr & 0x0F)) {
+                kprintf("Background and Foreground cannot be the same!\n");
+                return 2;
+            }
+
+            // Check if we are coloring the info bar
+            if (hash(c[2]) == hash("info")) {
+                info_bar_window.color = terminal_color(vga_palette[current_palette][(attr >> 4) & 0x0F], vga_palette[current_palette][attr & 0x0F]);
+                return true;
+            }
+
+            // Otherwise, apply to the main terminal
+            terminal.change_color(terminal_color(vga_palette[current_palette][(attr >> 4) & 0x0F], vga_palette[current_palette][attr & 0x0F]));
+            return true;
+        }
     }
+    
     return 2;
 }
 
@@ -331,27 +449,51 @@ int8_t cmd_keyboard(char c[MAX_COMMAND_ARGS][MAX_COMMAND_LEN]) {
 }
 
 
+int8_t cmd_scroll(char c[MAX_COMMAND_ARGS][MAX_COMMAND_LEN]) {
+
+    uint8_t num = (uint8_t)atoi(c[1]);
+    if (num < 0 && num > 255) return 2;
+    
+    
+    view_scroll = num;
+    return true;
+}
+
+
+
+int8_t cmd_fault(char c[MAX_COMMAND_ARGS][MAX_COMMAND_LEN]) {
+
+
+    int *a;
+    a=(int*)0x67;
+    *a = 7;
+
+
+    return true;
+}
+
+
 
 int8_t cmd_help(char c[MAX_COMMAND_ARGS][MAX_COMMAND_LEN]);
 
 
 command_t commands[] = {
-    {"help",      cmd_help,     "Provides help information for commands",   "[command]"},
-    {"clear",     cmd_clear,    "Clears the screen",                        ""},
-    {"echo",      cmd_echo,     "Prints text to screen",                    "[text]"},
-    {"check",     cmd_check,    "Checks ram, cs, stack, or cpu",            "[option] [format]\n\toptions: ram [av/us/adv/all], cs, stack, cpu, mouse\n\tformat (for ram): b, kb, mb, gb"},
-    {"cursor",    cmd_cursor,   "Changes cursor shape",                     "[0-2]"},
-    {"color",     cmd_color,    "Changes terminal color",                   "[attr] or rgb [bg] [fg]\n\tattr: 0x0F (hex) where lower nibble is fg and higher nibble is bg\n\tbg/fg: 0xRRGGBB (hex)"},
-    {"beep",      cmd_beep,     "sound",                                    ""},
-    {"mouse",     cmd_mouse,    "Enables or disables mouse",                "[enable/disable]"},
-    {"time",      cmd_time,     "Displays current date and time",           "[option]\n\toptions: all, date, clock, clockex, day, month, year, hour, minute, second, zone"},
-    {"reboot",    cmd_reboot,   "Reboots the system",                       ""},
-    {"shutdown",  cmd_shutdown, "Halts the system and powers off",          ""},
-    {"keyboard",  cmd_keyboard, "Changes keyboard layout",                  "[it/us]"},
+    {"help",        cmd_help,       "Provides help information for commands",   "[command]"},
+    {"clear",       cmd_clear,      "Clears the screen",                        ""},
+    {"echo",        cmd_echo,       "Prints text to screen",                    "[text]"},
+    {"check",       cmd_check,      "Checks system info or prints tables",      "[option] [format]\n\toptions: ram [av/us/adv/all], cs, stack, cpu, mouse, ascii\n\tformat (for ram): b, kb, mb, gb"},
+    {"cursor",      cmd_cursor,     "Changes cursor shape or blink state",      "[0-2] / blink [enable/disable]"},
+    {"color",       cmd_color,      "Changes terminal colors or theme",         "[attr] [info] / rgb [bg] [fg] [info] / theme [name] / type [0-3]\n\tattr: 0x0F\n\tbg/fg: 0xRRGGBB\n\tthemes: dracula, matrix, ocean, disable"},
+    {"beep",        cmd_beep,       "Plays a test sound",                       ""},
+    {"mouse",       cmd_mouse,      "Enables or disables the mouse",            "enable / disable"},
+    {"time",        cmd_time,       "Displays current date and time",           "[option]\n\toptions: all, date, clock, clockex, day, month, year, hour, minute, second, zone [offset]"},
+    {"reboot",      cmd_reboot,     "Reboots the system",                       ""},
+    {"shutdown",    cmd_shutdown,   "Halts the system and powers off",          ""},
+    {"keyboard",    cmd_keyboard,   "Changes keyboard layout",                  "it / us"},
+    {"scroll",      cmd_scroll,     "Changes amount of rows for scroll",        "[0-255]"},
+    {"fault",       cmd_fault,      "Page Faults",                              ""},
 
-
-    {"lastindex", NULL,         "i don't want to have to remove the ',' when shift+alt+downing the element of the array", ""}
-    
+    {"lastindex",   NULL,           "i don't want to have to put a , when doing SHIFT+ALT+DOWN", ""}
 };
 
 size_t num_commands = sizeof(commands) / sizeof(command_t);

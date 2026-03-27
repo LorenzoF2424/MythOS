@@ -25,4 +25,6 @@ int atoi(const char *str);
 
 uint32_t htoi(const char *str);
 
+extern "C" void* memmove(void* dest, const void* src, size_t n);
+
 #endif

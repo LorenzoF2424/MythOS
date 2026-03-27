@@ -74,7 +74,7 @@ void* malloc(size_t size) {
             cache_free_lists[cache_idx] = node;
         }
         
-        kprintf("Heap: Allocated new page for %d-byte cache.\n", block_size);
+        //kprintf("Heap: Allocated new page for %d-byte cache.\n", block_size);
     }
 
     HeapFreeNode* allocated_node = cache_free_lists[cache_idx];

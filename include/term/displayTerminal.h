@@ -1,60 +1,104 @@
 #ifndef DISPLAY_TERMINAL_H
 #define DISPLAY_TERMINAL_H
 
-#include "displayVESA.h"
-#include "fontBitmap.h"
-#include "gnu_utils/point.h"
-#include "sched/spinlock.h"
+
 #include <stddef.h>
 #include <stdint.h>
+#include "displayVESA.h"
+#include "fontBitmap.h"
+#include "terminalCursor.h"
+#include "terminalTheme.h"
+#include "gnu_utils/point.h"
+#include "gnu_utils/string.h"
+#include "sched/spinlock.h"
+#include "mem/kheap.h"
+#include "idt/mouse/displayMouse.h"
+
 
 #define MAX_INPUT_LEN 16384
+#define MAX_BUFFER_COLUMNS 480
+#define MAX_BUFFER_ROWS    135
 
 
-struct terminal_info_t {
+
+struct TerminalChar {
+   
+    char c;          
     terminal_color_t color;
-    point cursor;
-    uint16_t limit_col;
-    uint16_t limit_row;
-    uint16_t max_columns; 
-    uint16_t max_rows; 
-    uint8_t scale;
-    uint8_t tab_size;
+    bool locked;
 };
 
-extern terminal_info_t terminal_data;
-extern Spinlock terminal_lock;
-extern bool draw_info;
-extern bool draw_info_was_disabled;
-extern bool cursor_visible;
-extern bool cursor_blink;
-extern volatile bool draw_cursor;
-extern uint8_t cursor_shape;
-extern char input_buffer[MAX_INPUT_LEN];
-extern uint16_t input_len;
-extern uint16_t input_pos;
-extern point cursorp;
+struct terminal_input_t {
 
-void terminal_change_color(terminal_color_t new_color);
-void terminal_reset_color();
-void terminal_toggle_cursor_shape();
-void remove_cursor_shape();
-void terminal_cursor_update();
-void terminal_restore_cursor(bool was_visible);
-void reset_cursor_blink();
-void draw_char(char c, point p, terminal_color_t color);
-void terminal_scroll();
-void column_behaviour(terminal_info_t *t);
-void row_behaviour(terminal_info_t *t);
-void print_behaviour(terminal_info_t *t);
-void terminal_set_cursor(terminal_info_t *t, point p);
-void terminal_set_input_limit();
-void terminal_render_from_buffer(uint16_t start_pos);
-void terminal_putchar(char c);
-void terminal_putchar_at(char c, point p);
-void terminal_write(const char* str);
-void terminal_write_at(const char* str, point p);
-void terminal_clear();
-void terminal_write_welcome_message();
+    point start;
+    uint16_t max_x;
+    uint16_t pos;
+    uint16_t len;
+    char *command;
+
+    void setStart();
+
+};
+
+struct terminal_output_t {
+    // --- Data ---
+    terminal_color_t color;
+    point cursor; 
+    point max;
+    uint16_t buf_start;
+    uint8_t scale;
+    uint8_t tab_size;
+    uint8_t y_offset;
+    bool direct;
+    bool lock_text;
+    bool theme_enabled;
+
+    // --- Methods ---
+    void init();
+    void clear();
+    void visual_scroll();
+    void redraw_all();
+    void scroll();
+    void calculate_max();
+    
+    // Color and Cursor
+    void set_cursor(point p);
+    void set_input_limit();
+    void apply_colors(terminal_color_t old, terminal_color_t new_c);
+    void change_color(terminal_color_t new_c);
+    void reset_color();
+    
+    // Output
+    void putchar(char c);
+    void putchar_raw(char c);
+    void putcharAt(char c, point p);
+    void write(const char* str);
+    void writeAt(const char* str, point p);
+    void render_from_buffer(uint16_t start_pos);
+    void write_welcome();
+
+    // Row and Column Behaviour
+    void check_bounds();
+
+   
+};
+
+
+// Global Terminal
+extern terminal_output_t terminal;
+extern terminal_output_t info_bar_window;
+extern bool draw_info_was_disabled;
+extern terminal_input_t input;
+extern TerminalChar terminal_text_buffer[MAX_BUFFER_ROWS][MAX_BUFFER_COLUMNS];
+extern uint16_t view_offset;
+extern uint16_t history_lines;
+extern uint8_t view_scroll;
+extern Spinlock terminal_lock;
+
+// Input Extractor
+char* getInput();
+
+
+
 
 #endif

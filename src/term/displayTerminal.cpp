@@ -1,350 +1,450 @@
 #include "term/displayTerminal.h"
 
-bool draw_info = true;
-bool draw_info_was_disabled = false;
-terminal_info_t terminal_data = {
-    .color ={
-        .fg = 0xFFFFFF,
-        .bg = 0x000000
-    },
-    .cursor = point(0,0),
-    .limit_col = 0,
-    .limit_row = 0,
-    .max_columns = 0,
-    .max_rows = 0,
-    .scale = 1,
-    .tab_size = 4
+terminal_output_t terminal = {
+    .color     = { .fg = 0xFFFFFF, .bg = 0x000000 },
+    .cursor    = point(0, 0),
+    .max       = point(0, 0),
+    .buf_start = 0,
+    .scale     = 1,
+    .tab_size  = 4,
+    .y_offset  = 4,
+    .direct    = false,
+    .lock_text = false,
+    .theme_enabled = true
 };
+terminal_output_t info_bar_window;
+
+// ==========================================
+// Input handling structure
+// ==========================================
+terminal_input_t input = {
+    .start   = point(0, 0),
+    .max_x   = 0,
+    .pos     = 0,
+    .len     = 0,
+    .command = nullptr
+};
+
+TerminalChar terminal_text_buffer[MAX_BUFFER_ROWS][MAX_BUFFER_COLUMNS];
+
+// ==========================================
+// Global scrollback buffer variables
+// ==========================================
+uint16_t view_offset   = 0;
+uint16_t history_lines = 0;
+uint8_t  view_scroll   = 1;
 
 Spinlock terminal_lock;
 
-void disable_info() {
-    draw_info = false;
-    draw_info_was_disabled = true;
-}   
+bool    draw_info              = true;
+bool    draw_info_was_disabled = false;
 
-void apply_terminal_colors(terminal_color_t old_color, terminal_color_t new_color) {
-    uint32_t total_pixels = screen_height * pitch_pixels;
-    for (uint32_t i = 0; i < total_pixels; i++) {
-        if (framebuffer[i] == old_color.fg) {
-            framebuffer[i] = new_color.fg;
-        } else if (framebuffer[i] == old_color.bg) {
-            framebuffer[i] = new_color.bg;
-        }
-    }
-}
 
-void terminal_change_color(terminal_color_t new_color) {
-    terminal_color_t old_color = terminal_data.color;
-    terminal_data.color.fg = new_color.fg;
-    terminal_data.color.bg = new_color.bg;
-    apply_terminal_colors(old_color, new_color);
-}
-
-void terminal_reset_color() {
-    terminal_data.color.fg = 0xFFFFFF;
-    terminal_data.color.bg = 0x000000;
-}
-
-point cursorp;
-bool cursor_visible = false;
-bool cursor_blink = true;
-volatile bool draw_cursor=true;
-uint8_t cursor_shape=0;
-void terminal_toggle_cursor_shape() {
-    
-    point start = point(cursorp.x*8, cursorp.y*16);
-
-    switch (cursor_shape) {
-
-        case 0:
-            for (int y = 12; y < 16; y++) {
-                uint32_t* row_ptr = framebuffer + ((start.y + y) * pitch_pixels);
-        
-                for (int x = 0; x < 8; x++) {
-                    row_ptr[start.x + x] ^= 0x00FFFFFF; 
-                }
-            }
-
-        break;
-        case 1:
-            for (int y = 0; y < 16; y++) {
-                uint32_t* row_ptr = framebuffer + ((start.y + y) * pitch_pixels);
-            
-                for (int x = 0; x < 8; x++) {
-                    if (y == 0 || y == 15 || x == 0 || x == 7) {
-                        row_ptr[start.x + x] ^= 0x00FFFFFF; 
-                    }
-                }
-            }
-
-        break;
-        case 2:
-            for (int y = 0; y < 16; y++) {
-                uint32_t* row_ptr = framebuffer + ((start.y + y) * pitch_pixels);
-        
-                for (int x = 0; x < 8; x++) {
-                    row_ptr[start.x + x] ^= 0x00FFFFFF; 
-                }
-            }
-
-        break;
-    }
-    
-}
-
-void remove_cursor_shape() {
-
-    if (cursor_visible) {
-        terminal_toggle_cursor_shape();
-        cursor_visible = false;
-    }
-}
-
-void terminal_cursor_update() {
-    if (!draw_cursor) return;
-
-    if (!cursor_blink && cursor_visible) return;
-
-    
-    
-    cursorp = terminal_data.cursor;
-    terminal_toggle_cursor_shape();
-    cursor_visible = !cursor_visible; 
-}
-
-void terminal_restore_cursor(bool was_visible) {
-    if (!was_visible) return;
-
-    cursorp = terminal_data.cursor;
-    terminal_toggle_cursor_shape();
-    cursor_visible = true;
-}
-
-void reset_cursor_blink() {
-    
-    if (!draw_cursor) return;
-
-    cursorp = terminal_data.cursor; 
-
-    if (cursor_visible) return;
-
-    terminal_toggle_cursor_shape();
-    cursor_visible = true;
-}
-
+// ==========================================
+// UTILITY FUNCTIONS
+// ==========================================
 
 void draw_char(char c, point p, terminal_color_t color) {
     unsigned char uc = (unsigned char)c;
-    p.x*=8;
-    p.y*=16;
+    int32_t px = p.x * 8 * terminal.scale;
+    int32_t py = p.y * 16 * terminal.scale;
+
     for (uint8_t row = 0; row < 16; row++) {
-        unsigned char bits = fontBitmap[uc][row];
+        unsigned char bits    = fontBitmap[uc][row];
+        uint32_t* row_ptr = framebuffer + ((py + row) * pitch_pixels) + px;
         for (uint8_t col = 0; col < 8; col++) {
-            if (bits & (0x80 >> col)) {
-                put_pixel(p.x + col, p.y + row, color.fg);
+            row_ptr[col] = (bits & (0x80 >> col)) ? color.fg : color.bg;
+        }
+    }
+}
+
+// ==========================================
+// RING BUFFER HELPER
+// Maps logical cursor row → physical buffer row using buf_start
+// ==========================================
+static inline uint32_t buf_row(const terminal_output_t* t, uint32_t logical_y) {
+    return (t->buf_start + logical_y) % MAX_BUFFER_ROWS;
+}
+
+// ==========================================
+// TERMINAL_T METHODS
+// ==========================================
+
+void terminal_output_t::calculate_max() {
+    max = point(
+        screen_width  / (8  * scale),
+        screen_height / (16 * scale) - y_offset  // reserve rows for info bar
+    );
+}
+
+void terminal_output_t::init() {
+    spinlock_acquire(&terminal_lock);
+    for (uint32_t y = 0; y < MAX_BUFFER_ROWS; y++)
+        for (uint32_t x = 0; x < MAX_BUFFER_COLUMNS; x++)
+            terminal_text_buffer[y][x] = (TerminalChar){' ', color, false};
+
+    this->calculate_max();
+    spinlock_release(&terminal_lock);
+    init_default_theme();
+
+}
+
+void terminal_output_t::clear() {
+    spinlock_acquire(&terminal_lock);
+
+    for (uint32_t y = 0; y < MAX_BUFFER_ROWS; y++)
+        for (uint32_t x = 0; x < MAX_BUFFER_COLUMNS; x++)
+            terminal_text_buffer[y][x] = (TerminalChar){' ', color, false};
+
+    uint32_t total_pixels = screen_height * pitch_pixels;
+    for (uint32_t i = 0; i < total_pixels; i++)
+        framebuffer[i] = color.bg;
+
+    cursor      = point(0, 0);
+    buf_start   = 0;
+    input.start = point(0, 0);
+    
+    // Reset global scroll variables on clear
+    view_offset   = 0;
+    history_lines = 0;
+
+    spinlock_release(&terminal_lock);
+}
+
+void terminal_output_t::redraw_all() {
+    erase_mouse();
+
+    for (uint32_t screen_y = 0; screen_y < (uint32_t)max.y; screen_y++) {
+        
+        // CAMERA LOGIC: Calculate physical row by moving back 'view_offset'.
+        // Add MAX_BUFFER_ROWS before modulo to avoid negative numbers in C++.
+        uint32_t buffer_y = (buf_start + screen_y + MAX_BUFFER_ROWS - view_offset) % MAX_BUFFER_ROWS;
+        
+        for (uint32_t x = 0; x < (uint32_t)max.x; x++) {
+            
+            // Early Return (Break): Prevent reading outside logical bounds
+            if (x >= MAX_BUFFER_COLUMNS) break;
+            
+            // Fetch the character and its specific saved color from RAM
+            TerminalChar t = terminal_text_buffer[buffer_y][x];
+            
+            // Ensure null terminators are drawn as spaces to clean the background
+            char display_char = (t.c == '\0') ? ' ' : t.c;
+
+            // THE FIX: Use 't.color' instead of 'terminal.color' to respect the theme!
+            draw_char(display_char, point((int32_t)x, (int32_t)(screen_y + y_offset)), t.color);
+        }
+    }
+}
+
+void terminal_output_t::scroll() {
+    // 1. Update global history count
+    uint32_t max_history_possible = MAX_BUFFER_ROWS - max.y;
+    if (history_lines < max_history_possible) {
+        history_lines++;
+    }
+
+    // O(1) ring-buffer scroll: just advance buf_start by one row
+    // and clear the new last logical row — no data copying needed.
+    buf_start = (buf_start + 1) % MAX_BUFFER_ROWS;
+
+    // Clear the new last row (it will appear at the bottom of the screen)
+    uint32_t last = buf_row(this, max.y - 1);
+    for (uint32_t x = 0; x < MAX_BUFFER_COLUMNS; x++)
+        terminal_text_buffer[last][x] = (TerminalChar){' ', color, false};
+
+    if (input.start.y > 0) input.start.y--;
+    else input.start = point(0, 0);
+}
+
+void terminal_output_t::visual_scroll() {
+
+    erase_mouse();
+    // If the camera is shifted (user is looking at history), 
+    // we only update the logical ring buffer and exit. No physical drawing!
+    if (view_offset > 0) {
+        scroll();
+        return; 
+    }
+
+    // Move framebuffer pixels up by one character row using memmove (very fast).
+    // Then draw only the new bottom row — no full redraw needed.
+    uint32_t row_pixels = 16 * scale * pitch_pixels;   // pixels per text row
+    uint32_t offset     = y_offset * row_pixels;       // skip info bar rows
+
+    // Shift pixels up by one row
+    memmove(
+        framebuffer + offset,
+        framebuffer + offset + row_pixels,
+        (max.y - 1) * row_pixels * sizeof(uint32_t)
+    );
+
+    // Clear the new bottom row
+    uint32_t last_row_start = offset + (max.y - 1) * row_pixels;
+    for (uint32_t i = 0; i < row_pixels; i++)
+        framebuffer[last_row_start + i] = color.bg;
+
+    // Advance the ring buffer and draw the new last row
+    scroll();
+
+    uint32_t last_buf = buf_row(this, max.y - 1);
+    for (uint32_t x = 0; x < (uint32_t)max.x && x < MAX_BUFFER_COLUMNS; x++) {
+        draw_char(
+            terminal_text_buffer[last_buf][x].c,
+            point((int32_t)x, (int32_t)(max.y - 1 + y_offset)),
+            terminal_text_buffer[last_buf][x].color
+        );
+    }
+}
+
+void terminal_output_t::check_bounds() {
+    if (max.x == 0 || max.y == 0) calculate_max();
+    uint16_t wrap_limit_x = (max.x > 0) ? max.x : MAX_BUFFER_COLUMNS;
+
+    // Wrap to next line if we went past the right edge
+    if (cursor.x >= wrap_limit_x) {
+        cursor.x = 0;
+        cursor.y++;
+    }
+
+    // Scroll visually whenever the cursor moves below the visible viewport.
+    // visual_scroll() also calls scroll() which advances buf_start (O(1)).
+    // cursor.y is decremented each time so it stays at max.y - 1.
+    while (cursor.y >= max.y) {
+        visual_scroll();
+        cursor.y--;
+    }
+}
+
+void terminal_output_t::set_cursor(point p) {
+    if (p.x < MAX_BUFFER_COLUMNS && p.y < MAX_BUFFER_ROWS)
+        cursor = p;
+}
+
+void terminal_output_t::set_input_limit() {
+    input.start = cursor;
+    input.max_x = max.x;
+}
+
+void terminal_output_t::apply_colors(terminal_color_t old_c, terminal_color_t new_c) {
+    uint32_t total_pixels = screen_height * pitch_pixels;
+    for (uint32_t i = 0; i < total_pixels; i++) {
+        if      (framebuffer[i] == old_c.fg) framebuffer[i] = new_c.fg;
+        else if (framebuffer[i] == old_c.bg) framebuffer[i] = new_c.bg;
+    }
+}
+
+void terminal_output_t::change_color(terminal_color_t new_c) {
+    // Update the current pen color
+    color = new_c;
+
+    // Iterate through the entire logical text buffer in RAM
+    for (uint32_t y = 0; y < MAX_BUFFER_ROWS; y++) {
+        for (uint32_t x = 0; x < MAX_BUFFER_COLUMNS; x++) {
+            
+            // Early return equivalent (continue) for locked characters (e.g., Kernel Panics)
+            if (terminal_text_buffer[y][x].locked) continue;
+            
+            // Dynamically re-evaluate the character's color based on the active theme
+            if (theme_enabled) {
+                terminal_text_buffer[y][x].color = get_theme_color(terminal_text_buffer[y][x].c, new_c);
             } else {
-                put_pixel(p.x + col, p.y + row, color.bg);
+                // If the theme is disabled, apply the standard flat color
+                terminal_text_buffer[y][x].color = new_c;
             }
         }
     }
-}
 
-
-
-void terminal_scroll() {
-    uint32_t font_height = 16; 
-    uint32_t text_row_pixels = pitch_pixels * font_height; 
+    // Overwrite the entire physical screen background with the new background color
     uint32_t total_pixels = screen_height * pitch_pixels;
-
-    uint32_t protected_rows = draw_info ? 4 : 0;
-    
-    uint32_t protected_pixels = protected_rows * font_height * pitch_pixels;
-
-   
-    for (uint32_t i = protected_pixels; i < total_pixels - text_row_pixels; i++) {
-        framebuffer[i] = framebuffer[i + text_row_pixels];
+    for (uint32_t i = 0; i < total_pixels; i++) {
+        framebuffer[i] = new_c.bg;
     }
 
-    
-    for (uint32_t i = total_pixels - text_row_pixels; i < total_pixels; i++) {
-        framebuffer[i] = terminal_data.color.bg;
-    }
-
-    terminal_data.cursor.y = MAX_ROWS - 1;
+    // Redraw the current viewport with the freshly calculated colors
+    redraw_all();
 }
 
-void column_behaviour(terminal_info_t *t) {
-    if (t->cursor.x >= MAX_COLUMNS) {
-        t->cursor.x = 0;
-        t->cursor.y++;
-    }
-}
-
-void row_behaviour(terminal_info_t *t) {
-    if (t->cursor.y >= MAX_ROWS) 
-        terminal_scroll(); 
-}
-
-void print_behaviour(terminal_info_t *t) {
-    if (t->cursor.x >= MAX_COLUMNS) {
-        t->cursor.x = 0;
-        t->cursor.y++;
-    }
-
-    if (t->cursor.y >= MAX_ROWS) 
-        terminal_scroll(); 
-}
-
-void terminal_set_cursor(terminal_info_t *t, point p) {
-    t->cursor.x = p.x;
-    t->cursor.y = p.y;
-}
-
-void terminal_set_input_limit() {
-    terminal_data.limit_col = terminal_data.cursor.x;
-    terminal_data.limit_row = terminal_data.cursor.y;
-}
-
-
-char input_buffer[MAX_INPUT_LEN];
-uint16_t input_len=0;
-uint16_t input_pos=0;
-
-void terminal_render_from_buffer(uint16_t start_pos) {
-    uint16_t saved_col = terminal_data.cursor.x;
-    uint16_t saved_row = terminal_data.cursor.y;
-
-    for (uint16_t i = start_pos; i < input_len; i++) {
-        if (terminal_data.cursor.x >= MAX_COLUMNS) {
-            terminal_data.cursor.x = 0;
-            terminal_data.cursor.y++;
-        }
-        if (terminal_data.cursor.y >= MAX_ROWS) terminal_scroll();
-
-        draw_char(input_buffer[i], terminal_data.cursor, terminal_data.color);
-        terminal_data.cursor.x++;
-    }
-
-    draw_rect(terminal_data.cursor.x * 8, terminal_data.cursor.y * 16, 8, 16, terminal_data.color.bg);
-
-    terminal_data.cursor.x = saved_col;
-    terminal_data.cursor.y = saved_row;
-    
+void terminal_output_t::reset_color() {
+    color = (terminal_color_t){0xFFFFFF, 0x000000};
 }
 
 
 
-inline void terminal_putchar(char c) {
+void terminal_output_t::putchar(char c) {
 
-    remove_cursor_shape();
+    erase_mouse();
+    // Note: remove_cursor_shape() is NOT called here.
+    // It is called once at the start of write() / kprintf() so that
+    // bulk printing doesn't XOR the cursor pixels thousands of times.
 
     switch (c) {
-        case '\b': 
-            if (terminal_data.cursor.x > 0) {
-                terminal_data.cursor.x--;
-            } else if (terminal_data.cursor.y > terminal_data.limit_row) {
-                terminal_data.cursor.y--;
-                terminal_data.cursor.x = MAX_COLUMNS - 1;
-            } else {
-                return; 
-            }
+        case '\b': {
+            if (cursor.x > 0) {
+                // Don't backspace over the prompt
+                if (cursor.y == input.start.y && cursor.x <= input.start.x) return;
+                cursor.x--;
+            } else if (cursor.y > input.start.y) {
+                cursor.y--;
+                uint16_t wrap_limit = (max.x > 0) ? max.x : MAX_BUFFER_COLUMNS;
+                if (wrap_limit > MAX_BUFFER_COLUMNS) wrap_limit = MAX_BUFFER_COLUMNS;
+                cursor.x = wrap_limit - 1;
+            } else return;
 
-            draw_rect(terminal_data.cursor.x * 8, terminal_data.cursor.y * 16, 8, 16, terminal_data.color.bg);
+            // Update ring-buffer cell unconditionally
+            if (!direct)
+                terminal_text_buffer[buf_row(this, cursor.y)][cursor.x] = {' ', color, false};
+
+            // FIX: Ignore the global camera offset if drawing UI (direct mode)
+            int32_t screen_y = cursor.y + (direct ? 0 : view_offset);
+            
+            // Only draw the background rectangle if the line is currently visible
+            if (screen_y >= 0 && screen_y < (int32_t)max.y) {
+                draw_rect(
+                    cursor.x * 8 * scale,
+                    (screen_y + y_offset) * 16 * scale,
+                    8 * scale, 16 * scale,
+                    color.bg
+                );
+            }
             return;
-        break;
+        }
 
         case '\t': {
-            uint16_t spaces = terminal_data.tab_size - (terminal_data.cursor.x % terminal_data.tab_size);
-            terminal_data.cursor.x += spaces;
-            
-            if (terminal_data.cursor.x >= MAX_COLUMNS) {
-                terminal_data.cursor.x = 0;
-                terminal_data.cursor.y++;
-                if (terminal_data.cursor.y >= MAX_ROWS) terminal_scroll();
-            }
+            uint16_t spaces = tab_size - (cursor.x % tab_size);
+            for (uint16_t i = 0; i < spaces; i++) putchar(' ');
             return;
-
-        } break;
+        }
 
         case '\n':
-            terminal_data.cursor.x = 0;
-            terminal_data.cursor.y++;
-            if (terminal_data.cursor.y >= MAX_ROWS) terminal_scroll();
+            cursor.x = 0;
+            cursor.y++;
+            check_bounds();
             return;
-        break;
-        default:
-            if (terminal_data.cursor.x >= MAX_COLUMNS) {
-                terminal_data.cursor.x = 0;
-                terminal_data.cursor.y++;
+
+       default: {
+            // 1. Ensure the cursor is within physical buffer limits before starting
+            check_bounds(); 
+
+            // Early Return 1: If cursor is completely out of logical bounds, 
+            // advance the position for the next char and abort drawing
+            if (cursor.x >= MAX_BUFFER_COLUMNS || cursor.y >= (int32_t)max.y) {
+                cursor.x++; 
+                check_bounds(); 
+                return;
             }
-            if (terminal_data.cursor.y >= MAX_ROWS) terminal_scroll();
 
-            draw_char(c, terminal_data.cursor, terminal_data.color);
-            terminal_data.cursor.x++;
-        break;
+            // 2. Determine the character's color based on the theme engine
+            terminal_color_t char_color = color;
+            if (theme_enabled && !lock_text) {
+                char_color = get_theme_color(c, color);
+            }
+
+            // 3. Save to the logical RAM buffer unconditionally using the new color
+            if (!direct) {
+                terminal_text_buffer[buf_row(this, cursor.y)][cursor.x] = {c, char_color, lock_text};
+            }
+
+            // 4. Calculate physical screen Y based on the global camera offset
+            int32_t screen_y = cursor.y + (direct ? 0 : view_offset);
+            
+            // Early Return 2: If the character is logically saved but currently 
+            // off-camera (scrolled away), advance the position and skip drawing
+            if (screen_y < 0 || screen_y >= (int32_t)max.y) {
+                cursor.x++; 
+                check_bounds(); 
+                return;
+            }
+
+            // 5. Draw the character to the visible framebuffer
+            draw_char(c, point(cursor.x, screen_y + y_offset), char_color);
+            
+            // 6. Advance the cursor for the next character
+            cursor.x++; 
+            check_bounds(); 
+            return;
+        }
     }
-    
 }
 
-
-
-void terminal_putchar_at(char c, point p) {
+void terminal_output_t::putcharAt(char c, point p) {
+    if (p.x >= MAX_BUFFER_COLUMNS || p.y >= MAX_BUFFER_ROWS) return;
 
     spinlock_acquire(&terminal_lock);
-    bool was_visible = cursor_visible; 
-    
-    remove_cursor_shape(); 
-
-    point temp = terminal_data.cursor;
-    terminal_data.cursor = p;
-    terminal_putchar(c);
-    terminal_data.cursor = temp;
-
-    terminal_restore_cursor(was_visible);
-    spinlock_release(&terminal_lock);
-
-}
-
-void terminal_write(const char* str) {
-    for (size_t i = 0; str[i] != '\0'; i++) {
-        terminal_putchar(str[i]);
-    }
-}
-
-void terminal_write_at(const char* str, point p) {
-    
-    spinlock_acquire(&terminal_lock);
-    
     bool was_visible = cursor_visible;
     remove_cursor_shape();
 
-    point temp = terminal_data.cursor;
-    terminal_set_cursor(&terminal_data, p);
-    
-    for (size_t i = 0; str[i] != '\0'; i++) {
-        terminal_putchar(str[i]);
-    }
-    
-    terminal_set_cursor(&terminal_data, temp);
+    draw_char(c, point(p.x, p.y + y_offset), color);
 
     terminal_restore_cursor(was_visible);
     spinlock_release(&terminal_lock);
 }
 
-void terminal_clear() {
+void terminal_output_t::write(const char* str) {
     spinlock_acquire(&terminal_lock);
-    uint32_t total_pixels = screen_height * pitch_pixels;
-    for (uint32_t i = 0; i < total_pixels; i++) {
-        framebuffer[i] = terminal_data.color.bg;
-    }
-    terminal_set_cursor(&terminal_data, (point){0, 0});
+    remove_cursor_shape();  // once, before bulk printing
+    for (size_t i = 0; str[i] != '\0'; i++)
+        putchar(str[i]);
     spinlock_release(&terminal_lock);
 }
 
+void terminal_output_t::writeAt(const char* str, point p) {
+    if (p.x >= MAX_BUFFER_COLUMNS || p.y >= MAX_BUFFER_ROWS) return;
 
-void terminal_write_welcome_message() {
-    terminal_write("\xC9\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xBB\n");
-    terminal_write("\xBA        Welcome to MythOS!!           \xBA\n");
-    terminal_write("\xC8\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xBC\n\n");
+    spinlock_acquire(&terminal_lock);
+    bool was_visible = cursor_visible;
+    remove_cursor_shape();
+
+    point temp_cursor = cursor;
+    cursor = p;
+    for (size_t i = 0; str[i] != '\0'; i++)
+        putcharAt(str[i],point(p.x+i,p.y));
+    cursor = temp_cursor;
+
+    terminal_restore_cursor(was_visible);
+    spinlock_release(&terminal_lock);
+}
+
+void terminal_output_t::write_welcome() {
+    write("\xC9\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xBB\n");
+    write("\xBA         Welcome to MythOS!!          \xBA\n");
+    write("\xC8\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xBC\n\n");
+}
+
+void terminal_input_t::setStart() {
+    input.start = terminal.cursor;
+}
+
+// ==========================================
+// INPUT EXTRACTION
+// Reads exactly input.len characters from the ring buffer starting at
+// input.start, following the same wrap logic used during typing.
+// Returns a heap-allocated, null-terminated string (caller must free via
+// prepare_for_next_command).
+// ==========================================
+char* getInput() {
+    if (input.len == 0) return nullptr;
+
+    input.command = (char*)malloc(input.len);
+
+    point    current    = input.start;
+    uint16_t wrap_limit = (input.max_x > 0) ? input.max_x : MAX_BUFFER_COLUMNS;
+    if (wrap_limit > MAX_BUFFER_COLUMNS) wrap_limit = MAX_BUFFER_COLUMNS;
+
+    for (uint16_t i = 0; i < input.len; i++) {
+        // Map logical row through ring buffer
+        uint32_t physical_y = (terminal.buf_start + current.y) % MAX_BUFFER_ROWS;
+        input.command[i]    = terminal_text_buffer[physical_y][current.x].c;
+        current.x++;
+
+        if (current.x >= wrap_limit) {
+            current.x = 0;
+            current.y++;
+            if (current.y >= MAX_BUFFER_ROWS)
+                current.y = MAX_BUFFER_ROWS - 1;
+        }
+    }
+
+    input.command[input.len] = '\0';
+    return input.command;
 }

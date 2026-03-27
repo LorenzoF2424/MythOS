@@ -6,7 +6,7 @@
 #include "gnu_utils/string.h"
 #include "term/kprintf.h"
 
-extern size_t ticks;
+extern volatile uint64_t ticks;
 extern "C" void outb(uint16_t port, uint8_t value);
 extern "C" uint8_t inb(uint16_t port);
 static inline void outw(uint16_t port, uint16_t val) {

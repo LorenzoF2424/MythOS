@@ -1,173 +1,117 @@
 #include "term/kprintf.h"
 #include <stdarg.h>
 
+// ==========================================
+// SECTION 3: Terminal Output Wrappers (Screen)
+// ==========================================
 
-
-void print_number(uint64_t num, int base, bool is_signed, int padding, char pad_char) {
-    char buffer[64]; 
-    int i = 0;
-    bool is_negative = false;
-
-    if (is_signed && base == 10 && (int64_t)num < 0) {
-        is_negative = true;
-        num = (uint64_t)(-(int64_t)num);
-    }
-
-    if (num == 0) {
-        buffer[i++] = '0';
-    }
-
-    while (num > 0) {
-        int rem = num % base;
-        buffer[i++] = (rem < 10) ? ('0' + rem) : ('A' + rem - 10);
-        num /= base;
-    }
-
-    while (i < padding) {
-        buffer[i++] = pad_char;
-    }
-
-    if (is_negative) {
-        buffer[i++] = '-';
-    }
-
-    while (--i >= 0) {
-        terminal_putchar(buffer[i]);
-    }
-}
-
-
-
-
-void print_float(double num) {
-    if (num < 0) {
-        terminal_putchar('-');
-        num = -num;
-    }
-
-    // Parte intera
-    uint64_t int_part = (uint64_t)num;
-    print_number(int_part, 10, false, 0, ' ');
-
-    terminal_putchar('.');
-
-    // Parte decimale (Precisione 4 cifre fissa)
-    double frac_part = num - (double)int_part;
-    for (int i = 0; i < 4; i++) {
-        frac_part *= 10;
-        uint64_t digit = (uint64_t)frac_part;
-        terminal_putchar('0' + digit);
-        frac_part -= digit;
-    }
-}
-
-void print_ptr(uint64_t ptr) {
-    terminal_write("0x");
-    print_number(ptr, 16, false, 16, '0');
-}
-
-void unlocked_kprintf(const char* format, ...) {
-
-
-
-    
+static void kprintf_putc_callback(char c, void* arg) {
+    terminal.putchar(c);
 }
 
 void kprintf(const char* format, ...) {
+    // Early return: Prevent null pointer dereference
+    if (!format) return;
 
     spinlock_acquire(&terminal_lock);
+    
+    va_list args;
+    va_start(args, format);
+    printf_core(kprintf_putc_callback, nullptr, format, args);
+    va_end(args);
+    
+    spinlock_release(&terminal_lock);
+}
+
+void kprintfAt(terminal_output_t *t, point p, const char* format, ...) {
+    // Early Return: Safety check
+    if (!format || !t) return;
+    
+    spinlock_acquire(&terminal_lock);
+
+    // Save current cursor visibility and hide it to prevent flickering
+    bool was_visible = cursor_visible;
+    remove_cursor_shape();
+
+    // Backup the current global terminal state
+    terminal_output_t temp = terminal;
+
+    // Apply the target terminal configuration
+    terminal = *t;
+    terminal.cursor = p;
+    terminal.direct = true;
+
     va_list args;
     va_start(args, format);
 
-    for (int i = 0; format[i] != '\0'; i++) {
-        if (format[i] == '%') {
-            i++;
-            
-            int padding = 0;
-            char pad_char = ' ';
-            
-            if (format[i] == '0') {
-                pad_char = '0';
-                i++;
-            }
-            
-            while (format[i] >= '0' && format[i] <= '9') {
-                padding = (padding * 10) + (format[i] - '0');
-                i++;
-            }
-
-            switch (format[i]) {
-                case 'd': { 
-                    int64_t num = va_arg(args, int); 
-                    print_number((uint64_t)num, 10, true, padding, pad_char); 
-                    break; 
-                }
-                case 'x': { 
-                    uint32_t num = va_arg(args, uint32_t); 
-                    terminal_write("0x");
-                    print_number((uint64_t)num, 16, false, padding, pad_char); 
-                    break; 
-                }
-                case 'p': { 
-                    uint64_t ptr = (uint64_t)va_arg(args, void*); 
-                    print_ptr(ptr); 
-                    break; 
-                }
-                case 's': { 
-                    const char* str = va_arg(args, const char*); 
-                    terminal_write(str ? str : "(null)"); 
-                    break; 
-                }
-                case 'c': { 
-                    char c = (char)va_arg(args, int); 
-                    terminal_putchar(c); 
-                    break; 
-                }
-                case 'f': { 
-                    double num = va_arg(args, double); 
-                    print_float(num); 
-                    break; 
-                }
-                case 'l': { 
-                    i++;
-                    switch(format[i]) {
-                        case 'd': { 
-                            int64_t num = va_arg(args, long); 
-                            print_number((uint64_t)num, 10, true, padding, pad_char); 
-                            break; 
-                        }
-                        case 'x': { 
-                            uint64_t num = va_arg(args, uint64_t); 
-                            terminal_write("0x");
-                            print_number(num, 16, false, padding, pad_char); 
-                            break; 
-                        }
-                        default: 
-                            terminal_write("PRINT_ERR_L"); 
-                            terminal_putchar(format[i]); 
-                            break;
-                    }
-                    break;
-                }
-                case '%': { 
-                    terminal_putchar('%'); 
-                    break; 
-                }
-                default: { 
-                    terminal_write("PRINT_ERR"); 
-                    terminal_putchar(format[i]); 
-                    break; 
-                }
-            }
-        } else {
-            terminal_putchar(format[i]);
-        }
-    }
+    // Run the core engine (now printing to the redirected terminal at point p)
+    printf_core(kprintf_putc_callback, nullptr, format, args);
 
     va_end(args);
+
+    // Restore the original terminal state
+    terminal = temp;
+    terminal.direct = false;
+
+    // Restore cursor and its shape
+    draw_cursor = true;
+    terminal_restore_cursor(was_visible);
 
     spinlock_release(&terminal_lock);
 }
 
+void unlocked_kprintf(const char* format, ...) {
+    if (!format) return;
+    
+    va_list args;
+    va_start(args, format);
+    printf_core(kprintf_putc_callback, nullptr, format, args);
+    va_end(args);
+}
 
+// ==========================================
+// SECTION 4: Memory Output Wrappers (RAM Buffers)
+// ==========================================
 
+struct snprintf_context {
+    char* buffer;
+    size_t remaining;
+    size_t written;
+};
+
+static void snprintf_putc_callback(char c, void* arg) {
+    snprintf_context* ctx = (snprintf_context*)arg;
+    
+    // Early return: Prevent buffer overflow
+    if (ctx->remaining == 0) return;
+    
+    *(ctx->buffer)++ = c;
+    ctx->remaining--;
+    ctx->written++;
+}
+
+int vsnprintf(char* buffer, size_t n, const char* format, va_list args) {
+    if (!buffer || n == 0 || !format) return 0;
+    
+    // Initialize context state, reserving 1 byte for null terminator
+    snprintf_context ctx = { buffer, n - 1, 0 };
+    
+    printf_core(snprintf_putc_callback, &ctx, format, args);
+    
+    // Safety null termination
+    *(ctx.buffer) = '\0';
+    
+    return ctx.written;
+}
+
+int snprintf(char* buffer, size_t n, const char* format, ...) {
+    if (!format) return 0;
+
+    va_list args;
+    va_start(args, format);
+    
+    int written = vsnprintf(buffer, n, format, args);
+    
+    va_end(args);
+    return written;
+}

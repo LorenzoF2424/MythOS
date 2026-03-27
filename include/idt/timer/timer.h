@@ -8,7 +8,7 @@
 #include <stdint.h>
 
 
-extern uint64_t ticks;
+extern volatile uint64_t ticks;
 extern uint64_t previous_tick;
 extern uint64_t current_tick;
 

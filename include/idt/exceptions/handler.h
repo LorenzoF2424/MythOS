@@ -3,6 +3,9 @@
 
 #include <stdint.h>
 
+#define LOG_SIZE 256
+#define MAX_KLOGS 16
+
 struct registers_t {
     uint64_t r15, r14, r13, r12, r11, r10, r9, r8;
     uint64_t rbp, rdi, rsi, rdx, rcx, rbx, rax;
@@ -10,7 +13,13 @@ struct registers_t {
     uint64_t rip, cs, rflags, rsp, ss;
 } __attribute__((packed));
 
+extern char klogs[MAX_KLOGS][LOG_SIZE];
+extern uint8_t log_index;
+extern bool klogs_enabled;
+
 extern void init_exceptions();
+
+void klog(const char* format, ...);
 
 extern "C" void exception_handler(registers_t* regs);
 

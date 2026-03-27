@@ -6,7 +6,8 @@
 
 void prepare_for_next_command();
 void sysCommand(const char *command);
-void sysCommandAt(const char *command, point p);
+const char* capture_command(const char* cmd);
+void sysCommandAt(terminal_output_t *t, const char *command, point p);
 void command_handler();
 void refresh_command_line();
 

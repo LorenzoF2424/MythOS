@@ -1,6 +1,6 @@
 #include "idt/timer/timer.h"
 
-uint64_t ticks = 0;
+volatile uint64_t ticks = 0;
 uint64_t previous_tick = 0; 
 uint64_t current_tick = 0; 
 

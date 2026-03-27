@@ -21,7 +21,7 @@
 #define PIC2_DATA    0xA1
 
 #define MAX_HISTORY 10
-#define MAX_COMMAND_LEN 65536
+#define MAX_COMMAND_LEN 1024
 #define MAX_COMMAND_ARGS 16
 #define KBD_BUFFER_SIZE 256
 

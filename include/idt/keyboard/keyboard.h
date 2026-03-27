@@ -5,10 +5,11 @@
 #include "idt/keyboard/keyboardLayout.h"
 #include "cmos/io.h"
 
-extern bool shift_pressed;
-extern bool altgr_pressed;
+
+
+extern bool key_states[MAX_KEY_CODES];
 extern bool extended_scancode;
-extern char history[MAX_HISTORY][MAX_COMMAND_LEN]; // Usando MAX_INPUT_LEN
+extern char history[MAX_HISTORY][MAX_COMMAND_LEN]; 
 extern int8_t history_count;
 extern int8_t history_index;
 
