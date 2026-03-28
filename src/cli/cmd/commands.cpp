@@ -43,13 +43,13 @@ int8_t cmd_format_memory_info(uint32_t value_in_bytes, uint32_t format_hash) {
             kprintf("%d B", value_in_bytes);
             return true;
         case hash("kb"):
-            kprintf("%f KB", (double)value_in_bytes / 1024.0);
+            kprintf("%.4f KB", (double)value_in_bytes / 1024.0);
             return true;
         default:
-            kprintf("%f MB", (double)value_in_bytes / (1024.0 * 1024.0));
+            kprintf("%.4f MB", (double)value_in_bytes / (1024.0 * 1024.0));
             return true;
         case hash("gb"):
-            kprintf("%f GB", (double)value_in_bytes / (1024.0 * 1024.0 * 1024.0));
+            kprintf("%.4f GB", (double)value_in_bytes / (1024.0 * 1024.0 * 1024.0));
             return true;
     }
     return 2; 

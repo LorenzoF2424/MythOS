@@ -1,7 +1,7 @@
 #ifndef DISPLAY_VESA_H
 #define DISPLAY_VESA_H
 
-#include <stdint.h>
+#include "gnu_utils/stdintex.h"
 #include "bootboot.h"
 
 
