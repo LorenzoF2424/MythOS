@@ -2,7 +2,8 @@
 #define COMMAND_H
 
 #include "idt/keyboard/keyboard.h"
-#include "cli/cmd/commands.h"
+#include "cli/commands.h"
+#include "fs/vfs.h"
 
 void prepare_for_next_command();
 void sysCommand(const char *command);

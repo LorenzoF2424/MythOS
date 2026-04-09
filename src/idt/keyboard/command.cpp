@@ -1,6 +1,5 @@
 #include "idt/keyboard/command.h"
 #include "mem/pmm.h"
-// Make sure you have included the header for malloc/free here!
 
 void prepare_for_next_command() {
     // If there is a previously allocated command from getInput(), free its memory
@@ -12,55 +11,71 @@ void prepare_for_next_command() {
     input.len = 0;
     
     // Print the prompt
-    kprintf("MythOS>");
+    vfs_print_prompt();
     
     // Lock the input boundary so the user cannot backspace over the prompt
     terminal.set_input_limit();  
 }
 
-void sysCommand(const char *command) {
-    if (command == NULL || command[0] == '\0') {
-        return;    
-    }
+int8_t tokenize_command(char* input, int& argc, char** argv) {
+    argc = 0;
+    char* ptr = input;
 
-    
+    while (*ptr != '\0' && argc < MAX_ARGC) {
+        // Skip whitespace
+        while (*ptr == ' ') ptr++;
+        if (*ptr == '\0') break;
 
-    //-------------------------------FINDING ARGS------------------------------------------
-    char input_buffer_temp[MAX_INPUT_LEN];
-    strcpy(input_buffer_temp, command);
-    
-    char (*args)[MAX_COMMAND_LEN] = (char (*)[MAX_COMMAND_LEN]) pmm_alloc_blocks(2);
-    for(int i = 0; i < MAX_COMMAND_ARGS; i++) args[i][0] = '\0';
-
-    uint8_t num_args = 0;
-    char* token = strtok(input_buffer_temp, ' ');
-    
-    while (token != NULL) {
-        if (num_args >= MAX_COMMAND_ARGS) {
-            kprintf("Error: Too many arguments.\n");
-            pmm_free_blocks(args, 8);
-            return;
+        // Save the start of the token
+        if (*ptr == '"') {
+            ptr++; // Skip opening quote
+            argv[argc++] = ptr;
+            while (*ptr != '"' && *ptr != '\0') ptr++;
+        } else {
+            argv[argc++] = ptr;
+            while (*ptr != ' ' && *ptr != '\0') ptr++;
         }
-        strcpy(args[num_args++], token);
-        token = strtok(NULL, ' ');
+
+        // Place a null terminator to end the current token
+        if (*ptr != '\0') {
+            *ptr = '\0';
+            ptr++;
+        }
     }
+    return (argc > 0);
+}
 
-    if (!(hash(args[0])==hash("fault") || hash(args[0])==hash("check") && hash(args[1])==hash("logs"))) 
-        klog("%s(%s)", __func__, command);
+void sysCommand(const char *command) {
+    // Early return: empty input
+    if (command == nullptr || command[0] == '\0') return;
 
-    if (num_args <= 0) {
-        pmm_free_blocks(args, 2);
+    // 1. Allocate memory for the command copy using PMM
+    char* cmd_copy = (char*)pmm_alloc_blocks(1); 
+    
+    // Early return: Out of memory
+    if (cmd_copy == nullptr) {
+        kprintf("Error: System out of memory for command parsing.\n");
         return;
     }
-    
+
+    // 2. Prepare pointers and copy data
+    int argc = 0;
+    char* argv[MAX_ARGC]; 
+    strncpy(cmd_copy, command, 4096 - 1); // Use block size limit
+    cmd_copy[4095] = '\0';
+
+    // 3. Tokenize in-place (argv will point inside cmd_copy)
+    if (!tokenize_command(cmd_copy, argc, argv)) return;
+
+
     remove_cursor_shape();
     draw_cursor = false;
-    switch (execute_command(args)) {
-        case 0: kprintf("%s: command not found\n", args[0]); break;
-        case 2: kprintf("%s: not enough parameters\nTry 'help %s' for more information\n", args[0], args[0]); break;
-    } 
+        
+    // Execute the command
+    execute_command(argc, argv);
     
-    pmm_free_blocks(args, 2);
+
+    pmm_free_blocks(cmd_copy, 1);
 }
 
 void sysCommandAt(terminal_output_t *t, const char *command, point p) {

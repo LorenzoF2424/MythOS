@@ -15,6 +15,14 @@ size_t strlen(const char *str) {
     return len;
 }
 
+void strinit(char *str) {
+
+    size_t size = strlen(str);
+    for (size_t i=0; i<size-1;i++)
+        str[i]='\0';
+
+}
+
 
 void strcpy(char *dest, const char *src) {
     size_t i = 0;
@@ -43,22 +51,55 @@ int32_t strcmp(const char* s1, const char* s2) {
     return *(unsigned char*)s1 - *(unsigned char*)s2;
 }
 
-char* strtok(char* str, const char delimiter) {
-    static char* last_pos = NULL;
+char* strtok(char* str, const char* delim) {
+    static char* last_pos = nullptr;
 
-    
-    if (str != NULL) {
+    // Start from the new string if provided
+    if (str != nullptr) {
         last_pos = str;
     }
 
-    if (last_pos == NULL || *last_pos == '\0') {
-        return NULL;
+    // Early return: nothing left to parse
+    if (last_pos == nullptr) return nullptr;
+
+    // 1. Skip leading delimiters (The Standard C behavior)
+    while (*last_pos != '\0') {
+        bool is_delim = false;
+        
+        // Check if the current character matches any of the delimiters
+        for (int i = 0; delim[i] != '\0'; i++) {
+            if (*last_pos == delim[i]) {
+                is_delim = true;
+                break;
+            }
+        }
+        
+        // Early break: we found a valid character that is NOT a delimiter!
+        if (!is_delim) break; 
+        
+        last_pos++;
     }
 
-    char* token_start = last_pos;
+    // Early return: reached the end while skipping delimiters
+    if (*last_pos == '\0') {
+        last_pos = nullptr;
+        return nullptr;
+    }
 
+    // 2. Find the end of the current token
+    char* token_start = last_pos;
     while (*last_pos != '\0') {
-        if (*last_pos == delimiter) {
+        bool is_delim = false;
+        
+        for (int i = 0; delim[i] != '\0'; i++) {
+            if (*last_pos == delim[i]) {
+                is_delim = true;
+                break;
+            }
+        }
+
+        if (is_delim) {
+            // Terminate the token and advance the pointer for the next call
             *last_pos = '\0'; 
             last_pos++;       
             return token_start;
@@ -66,7 +107,8 @@ char* strtok(char* str, const char delimiter) {
         last_pos++;
     }
 
-    last_pos = NULL; 
+    // 3. Reached the end of the entire string (last token)
+    last_pos = nullptr;
     return token_start;
 }
 
@@ -149,7 +191,19 @@ extern "C" void* memmove(void* dest, const void* src, size_t n) {
 }
 
 
+extern "C" void* memset(void* dest, int c, size_t n) {
+    // Early return: safety check to prevent writing to null pointers
+    if (dest == nullptr || n == 0) return dest;
 
+    uint8_t* ptr = (uint8_t*)dest;
+    uint8_t value = (uint8_t)c;
+
+    for (size_t i = 0; i < n; i++) {
+        ptr[i] = value;
+    }
+
+    return dest;
+}
 
 
 

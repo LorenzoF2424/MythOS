@@ -15,7 +15,7 @@ void strncpy(char *dest, const char *src, size_t max);
 
 int32_t strcmp(const char* s1, const char* s2);
 
-char* strtok(char* str, const char delimiter);
+char* strtok(char* str, const char* delim);
 
 constexpr uint32_t hash(const char* str, uint32_t h = 5381) {
     return (*str == '\0') ? h : hash(str + 1, ((h << 5) + h) + *str);
@@ -26,5 +26,7 @@ int atoi(const char *str);
 uint32_t htoi(const char *str);
 
 extern "C" void* memmove(void* dest, const void* src, size_t n);
+
+extern "C" void* memset(void* dest, int c, size_t n);
 
 #endif

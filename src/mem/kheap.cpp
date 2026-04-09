@@ -119,3 +119,25 @@ void free(void* ptr) {
 
     spinlock_release(&heap_lock);
 }
+
+
+void init_memory() {
+    init_pmm();
+    init_vmm();
+
+    uint64_t* kernel_pml4 = vmm_get_kernel_pml4();
+    if (!kernel_pml4) return; // Early return: Critical failure
+
+    vmm_copy_higher_half(kernel_pml4);
+
+    uint64_t total_mb = get_total_memory_mb();
+    uint64_t ram_to_map = (total_mb + 16ULL) * 1024ULL * 1024ULL;
+    vmm_map_range(kernel_pml4, 0, 0, ram_to_map, PAGE_PRESENT | PAGE_RW);
+    vmm_map_page(kernel_pml4, 0x0, 0x0, 0); 
+
+    vmm_switch_pml4(kernel_pml4);
+    init_kheap();
+
+    // Just one clean log for the entire memory subsystem
+    klog("[%s] Memory ready: %ld MB mapped, PML4 at %p, Heap active", __func__, total_mb, kernel_pml4);
+}

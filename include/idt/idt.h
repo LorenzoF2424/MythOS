@@ -21,8 +21,9 @@
 #define PIC2_DATA    0xA1
 
 #define MAX_HISTORY 10
-#define MAX_COMMAND_LEN 1024
-#define MAX_COMMAND_ARGS 16
+#define MAX_ARGC 16
+#define MAX_ARG_LEN 256
+#define MAX_COMMAND_LEN (MAX_ARGC * MAX_ARG_LEN)
 #define KBD_BUFFER_SIZE 256
 
 struct idt_entry_t {
