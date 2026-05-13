@@ -2,8 +2,9 @@
 #define VFS_H
 
 #include <stdint.h>
-#include "term/kprintf.h"
-#include "gnu_utils/string.h"
+#include "drivers/display/kprintf.h"
+#include "lib/string.h"
+
 
 #define VFS_FILE        0x01
 #define VFS_DIRECTORY   0x02
@@ -21,6 +22,7 @@ public:
     virtual uint64_t write(uint64_t offset, uint64_t size, const uint8_t* buffer) = 0;
     virtual VFSNode* finddir(const char* name) = 0;
     virtual VFSNode* readdir(uint32_t index) = 0; 
+    virtual bool create_file(const char* new_filename) { return false; }
 };
 
 // ==========================================
@@ -48,6 +50,22 @@ void vfs_get_display_path(char* output_buffer);
 // Prints the formatted terminal prompt (e.g., "root/folder> ")
 void vfs_print_prompt();
 
+
+
+
+
+// ==========================================
+// VFS Mount System
+// ==========================================
+
+struct MountPoint {
+    char name[248];
+    VFSNode* node;
+};
+
+// Mounts a physical or virtual filesystem node to a target folder name 
+// at the root level (e.g., target_name = "hdd" means "/hdd")
+void vfs_mount(const char* target_name, VFSNode* fs_root_node);
 
 
 #endif 

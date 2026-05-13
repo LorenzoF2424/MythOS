@@ -1,5 +1,5 @@
 #include "cli/cli.h"
-#include "gnu_utils/string.h"
+
 
 void draw_info_bar();
 

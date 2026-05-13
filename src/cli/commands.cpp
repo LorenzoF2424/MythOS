@@ -1,6 +1,6 @@
 #include "cli/commands.h"
-#include "idt/keyboard/keyboard.h" 
-#include "idt/sound/sound.h"
+#include "drivers/input/keyboard/keyboard.h" 
+#include "drivers/sound/sound.h"
 
 // The dynamic registry (hidden from other files)
 command_t registered_commands[MAX_REGISTERED_COMMANDS];

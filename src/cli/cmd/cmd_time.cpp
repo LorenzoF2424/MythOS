@@ -1,5 +1,5 @@
 #include "cli/commands.h"
-#include "idt/rtc/rtc.h"
+#include "drivers/cmos/rtc/rtc.h"
 
 
 // ==========================================

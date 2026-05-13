@@ -1,0 +1,24 @@
+#ifndef KEYBOARD_H
+#define KEYBOARD_H
+
+#include "kernel/idt/idt.h"
+#include "keyboardLayout.h"
+#include "drivers/cmos/io.h"
+
+
+
+extern bool key_states[MAX_KEY_CODES];
+extern bool extended_scancode;
+extern char history[MAX_HISTORY][MAX_COMMAND_LEN]; 
+extern int8_t history_count;
+extern int8_t history_index;
+
+void init_keyboard();
+extern "C" void keyboard_isr();
+extern "C" void keyboard_handler_c();
+extern void command_handler();
+void process_keyboard_events();
+void handle_character_input(char c);
+void refresh_command_line();
+
+#endif

@@ -1,7 +1,7 @@
 #ifndef COMMANDS_H
 #define COMMANDS_H
 
-#include "idt/idt.h" 
+#include "kernel/idt/idt.h" 
 
 
 #define MAX_REGISTERED_COMMANDS 64

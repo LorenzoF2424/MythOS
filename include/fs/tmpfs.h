@@ -2,7 +2,7 @@
 #define TMPFS_H
 
 #include "vfs.h"
-#include "gnu_utils/string.h"
+#include "lib/string.h"
 
 // --- FILE IMPLEMENTATION ---
 class TmpFSFile : public VFSNode {
