@@ -99,7 +99,6 @@ void init_all() {
 
 void test() {
     
-  // ... dentro la tua funzione di init ...
 mbr_read_partitions();
 
 // Test raw: read the file directly from hardware
